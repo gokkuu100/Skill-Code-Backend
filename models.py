@@ -32,6 +32,7 @@ class Assessment(db.Model, SerializerMixin):
     
     assignments = db.relationship('Assignment', backref='assessment', lazy='dynamic')
     questions = db.relationship('Question', backref='assessment', lazy='dynamic')
+    grades = db.relationship('Grade', backref='assessment', lazy='dynamic')
 
 class Assignment(db.Model, SerializerMixin):
     assignment_id = db.Column(db.Integer, primary_key=True)
@@ -50,6 +51,7 @@ class Invite(db.Model, SerializerMixin):
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
+    is_accepted = db.Column(db.Boolean, default=False)
 
 class Question(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, primary_key=True)
