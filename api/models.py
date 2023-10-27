@@ -91,14 +91,16 @@ class Answer(db.Model, SerializerMixin):
 
 class Feedback(db.Model, SerializerMixin):
     feedback_id = db.Column(db.Integer, primary_key=True)
-    feedback = db.Column(db.String(255))
-    question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
+    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
+    question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
+    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
+    feedback = db.Column(db.String(255))
 
 class Notification(db.Model, SerializerMixin):
     notification_id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(255))
-    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
+    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
 
 class Response(db.Model, SerializerMixin):
     response_id = db.Column(db.Integer, primary_key=True)
