@@ -1,4 +1,5 @@
-from .api import *
+from .api import app, routes
+
 
 
 
