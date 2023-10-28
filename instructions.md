@@ -7,13 +7,13 @@ flask db init
 flask db migrate
 flask db upgrade
 ```
-## SEED DB WITH A RECORD
+## SEED DB WITH RECORDS
 
 ```bash
-pytest
+python3 seed.py
 ```
 
-## starting app
+## start app
 ```bash
 flask run
 ```
