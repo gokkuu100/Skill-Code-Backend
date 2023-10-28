@@ -80,7 +80,7 @@ def create_fake_data(model):
         options = [
             f'A:{fake.word()}, B:{fake.word()}, C:{fake.word()}, D:{fake.word()}',
             f'A:{fake.word()}, B:{fake.word()}, C:{fake.word()}, D:{fake.word()}',
-            # Add more sets of options as needed
+            
         ]
         options_text = fake.random_element(options)
         
@@ -95,8 +95,8 @@ def create_fake_data(model):
                 'text_question': text_question,
                 'correct_answer': correct_answer,
                 'mentor': mentor,
-                'assignment_id': assignment.assignment_id,  # Corrected to 'assignment_id'
-                'assessment_id': assessment.assessment_id,  # Set the appropriate field
+                'assignment_id': assignment.assignment_id,  
+                'assessment_id': assessment.assessment_id, 
             }
             question = Question(**question_data)
             db.session.add(question)
@@ -160,7 +160,6 @@ def create_fake_data(model):
             'score': fake.random_int(min=0, max=10)
         }
     
-    # Inside the "create_fake_data" function for other models
 
     elif model == Answer:
         question = Question.query.order_by(db.func.random()).first()
@@ -196,7 +195,7 @@ with app.app_context():
     tables_to_seed = [Mentor, Assessment, Assignment, Student, Question, Grade, Feedback, Notification, Response, Invite, Answer]
     for table in tables_to_seed:
         table_name = table.__name__
-        count = 20  # You can change the number of records as needed
+        count = 20 
         seed_table(table, count)
         db.session.commit()
         print(f"Successfully seeded {count} records in the {table_name} table.")
