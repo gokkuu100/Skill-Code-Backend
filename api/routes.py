@@ -1,129 +1,140 @@
 from ..api import *
+
+ns = Namespace('SkillCode',description='CRUD endpoints')
+api.add_namespace(ns)
 jwt = JWTManager(app)
 
-@app.route('/')
-def home():
-    response_body = {
-        "Message": "Welcome to the world of heroes"
-    }
-    return make_response(response_body), 200
+
+@ns.route('/')
+class HomeResource(Resource):
+    def get(self):
+        response_body = {
+            "Message": "Welcome to the world of heroes"
+        }
+        return make_response(response_body), 200
 
 # Route for mentor to sign-up
-@app.route('/mentors/signup', methods=['POST'])
-def mentor_signup():
-    data = request.get_json()
+@ns.route('/mentors/signup')
+class MentorSignupResource(Resource):
+    def post(self):
+        data = request.get_json()
 
-    # Retrieve mentor data from request
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
+        # Retrieve mentor data from request
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
 
-    if not name or not email or not password:
-        return jsonify(error='Invalid request data'), 400
+        if not name or not email or not password:
+            return jsonify(error='Invalid request data'), 400
 
-    # Check if already exists
-    existing_mentor = Mentor.query.filter_by(email=email).first()
-    if existing_mentor:
-        return jsonify(error='Mentor with this email already exists'), 400
+        # Check if already exists
+        existing_mentor = Mentor.query.filter_by(email=email).first()
+        if existing_mentor:
+            return jsonify(error='Mentor with this email already exists'), 400
 
-    # Hash password
-    password_hash = generate_password_hash(password)
+        # Hash password
+        password_hash = generate_password_hash(password)
 
-    # New mentor object
-    new_mentor = Mentor(name=name, email=email, password=password_hash)
-    db.session.add(new_mentor)
-    db.session.commit()
+        # New mentor object
+        new_mentor = Mentor(name=name, email=email, password=password_hash)
+        db.session.add(new_mentor)
+        db.session.commit()
 
-    access_token = create_access_token(identity={'email': email, 'role': 'mentor', 'mentor_id': new_mentor.mentor_id})
-    return jsonify(access_token=access_token), 200
+        access_token = create_access_token(identity={'email': email, 'role': 'mentor', 'mentor_id': new_mentor.mentor_id})
+        return jsonify(access_token=access_token), 200
 
 # Route for mentor login
-@app.route('/mentors/login', methods=['POST'])
-def mentor_login():
-    data = request.get_json()
+@ns.route('/mentors/login')
+class MentorLoginResource(Resource):
+    def post(self):
+        data = request.get_json()
 
-    email = data.get('email')
-    password = data.get('password')
+        email = data.get('email')
+        password = data.get('password')
 
-    if not email or not password:
-        return jsonify(error='Invalid request data'), 400
+        if not email or not password:
+            return jsonify(error='Invalid request data'), 400
 
-    # Retrieve the mentor with the given email from db
-    mentor = Mentor.query.filter_by(email=email).first()
+        # Retrieve the mentor with the given email from db
+        mentor = Mentor.query.filter_by(email=email).first()
 
-    # Check if the mentor exists and the password is correct
-    if mentor and check_password_hash(mentor.password, password):
-        # Generate JWT token 
-        access_token = create_access_token(identity={'email': email, 'role': 'mentor', 'mentor_id': mentor.mentor_id})
-        return jsonify(access_token=access_token), 200
-    else:
-        return jsonify(error='Invalid email or password'), 401
-    
+        # Check if the mentor exists and the password is correct
+        if mentor and check_password_hash(mentor.password, password):
+            # Generate JWT token 
+            access_token = create_access_token(identity={'email': email, 'role': 'mentor', 'mentor_id': mentor.mentor_id})
+            return jsonify(access_token=access_token), 200
+        else:
+            return jsonify(error='Invalid email or password'), 401
+        
 # Route to view mentor based on id
-@app.route('/mentors/<int:mentor_id>', methods=['GET'])
-def view_mentor(mentor_id):
-    mentor = Mentor.query.get_or_404(mentor_id)
-    mentor_data = {
-        'id': mentor.mentor_id,
-        'name': mentor.name,
-        'email': mentor.email,
-        'assessments': [{
-            'id': assessment.assessment_id,
-            'title': assessment.title,
-            # 'created_at': assessment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'questions_count': assessment.questions.count()
-        } for assessment in mentor.assessments]
-    }
-    return jsonify(mentor_data)
+@ns.route('/mentors/<int:mentor_id>')
+class ViewMentorResource(Resource):
+    def get(self, mentor_id):
+        mentor = Mentor.query.get_or_404(mentor_id)
+        mentor_data = {
+            'id': mentor.mentor_id,
+            'name': mentor.name,
+            'email': mentor.email,
+            'assessments': [{
+                'id': assessment.assessment_id,
+                'title': assessment.title,
+                # 'created_at': assessment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'questions_count': assessment.questions.count()
+            } for assessment in mentor.assessments]
+        }
+        return jsonify(mentor_data)
 
 # Route for student sign-up
-@app.route('/students/signup', methods=['POST'])
-def student_signup():
-    data = request.get_json()
+@ns.route('/students/signup')
+class StudentSignupResource(Resource):
+    def post(self):
+        data = request.get_json()
 
-    email = data.get('email')
-    password = data.get('password')
+        email = data.get('email')
+        password = data.get('password')
 
-    if not email or not password:
-        return jsonify(error='Invalid request data'), 400
+        if not email or not password:
+            return jsonify(error='Invalid request data'), 400
 
-    # Check if the student already exists
-    existing_student = Student.query.filter_by(email=email).first()
-    if existing_student:
-        return jsonify(error='Student with this email already exists'), 400
+        # Check if the student already exists
+        existing_student = Student.query.filter_by(email=email).first()
+        if existing_student:
+            return jsonify(error='Student with this email already exists'), 400
 
-    # Hash the password 
-    password_hash = generate_password_hash(password)
+        # Hash the password 
+        password_hash = generate_password_hash(password)
 
-    # New student object
-    new_student = Student(email=email, password=password_hash)
-    db.session.add(new_student)
-    db.session.commit()
+        # New student object
+        new_student = Student(email=email, password=password_hash)
+        db.session.add(new_student)
+        db.session.commit()
 
-    access_token = create_access_token(identity={'email': email, 'role': 'student', 'student_id': new_student.student_id})
-    return jsonify(access_token=access_token), 200
+        access_token = create_access_token(identity={'email': email, 'role': 'student', 'student_id': new_student.student_id})
+        return jsonify(access_token=access_token), 200
 
 # Route for student login
-@app.route('/students/login', methods=['POST'])
-def student_login():
-    data = request.get_json()
+@ns.route('/students/login')
+class StudentLoginResource(Resource):
+    def post(self):
 
-    email = data.get('email')
-    password = data.get('password')
+        data = request.get_json()
 
-    if not email or not password:
-        return jsonify(error='Invalid request data'), 400
+        email = data.get('email')
+        password = data.get('password')
 
-    # Retrieve the student with the given email from db
-    student = Student.query.filter_by(email=email).first()
+        if not email or not password:
+            return jsonify(error='Invalid request data'), 400
 
-    # Check if the student exists and correct password
-    if student and check_password_hash(student.password, password):
-        # Generate JWT token 
-        access_token = create_access_token(identity={'email': email, 'role': 'student', 'student_id': student.student_id})
-        return jsonify(access_token=access_token), 200
-    else:
-        return jsonify(error='Invalid email or password'), 401
+        # Retrieve the student with the given email from db
+        student = Student.query.filter_by(email=email).first()
+
+        # Check if the student exists and correct password
+        if student and check_password_hash(student.password, password):
+            # Generate JWT token 
+            access_token = create_access_token(identity={'email': email, 'role': 'student', 'student_id': student.student_id})
+            return jsonify(access_token=access_token), 200
+        else:
+            return jsonify(error='Invalid email or password'), 401
 
 
 # # Route to create an assessment
@@ -159,45 +170,47 @@ def student_login():
 #     return jsonify(message='Assessment created successfully')
 
 # View assessment based on its id
-@app.route('/assessments/<int:assessment_id>', methods=['GET'])
-def view_assessment(assessment_id):
-    # Retrieve the assessment based on id
-    assessment = Assessment.query.get_or_404(assessment_id)
+@ns.route('/assessments/<int:assessment_id>')
+class ViewAssessmentResource(Resource):
+    def get(self,assessment_id):
+        # Retrieve the assessment based on id
+        assessment = Assessment.query.get_or_404(assessment_id)
 
-    # Retrieve questions and answers for the assessment
-    questions = []
-    for question in assessment.questions:
-        questions.append({
-            'id': question.question_id,
-            'text': question.text_question,
-            'options': question.options.split('\n'),  
-            'correct_answer': question.correct_answer
-        })
+        # Retrieve questions and answers for the assessment
+        questions = []
+        for question in assessment.questions:
+            questions.append({
+                'id': question.question_id,
+                'text': question.text_question,
+                'options': question.options.split('\n'),  
+                'correct_answer': question.correct_answer
+            })
 
-    return jsonify({
-        'id': assessment.assessment_id,
-        'title': assessment.title,
-        'questions': questions
-    })
-
-# Route to view all the assessments
-@app.route('/assessments', methods=['GET'])
-def list_assessments():
-    assessments = Assessment.query.all()
-
-    # Lists the assessments
-    assessment_list = []
-    for assessment in assessments:
-        assessment_data = {
+        return jsonify({
             'id': assessment.assessment_id,
             'title': assessment.title,
-            'description': assessment.description,
-            # 'created_at': assessment.created_at.strftime('%Y-%m-%d %H:%M:%S'), 
-            'questions_count': assessment.questions.count()  
-        }
-        assessment_list.append(assessment_data)
+            'questions': questions
+        })
 
-    return jsonify(assessments=assessment_list)
+# Route to view all the assessments
+@ns.route('/assessments')
+class AssessmentsResource(Resource):
+    def get(post):
+        assessments = Assessment.query.all()
+
+        # Lists the assessments
+        assessment_list = []
+        for assessment in assessments:
+            assessment_data = {
+                'id': assessment.assessment_id,
+                'title': assessment.title,
+                'description': assessment.description,
+                # 'created_at': assessment.created_at.strftime('%Y-%m-%d %H:%M:%S'), 
+                'questions_count': assessment.questions.count()  
+            }
+            assessment_list.append(assessment_data)
+
+        return jsonify(assessments=assessment_list)
 
 # # Route to view and answer questions for an assessment
 # @app.route('/assessments/<int:assessment_id>/questions/<int:question_number>', methods=['GET', 'POST'])
@@ -259,42 +272,43 @@ def list_assessments():
     
     
 # Feedback route
-@app.route('/mentors/feedback', methods=['POST'])
+@ns.route('/mentors/feedback', methods=['POST'])
 # @jwt_required()
-def leave_feedback():
-    data = request.get_json()
-    mentor_id = data.get('mentor_id')
-    assessment_id = data.get('assessment_id')
-    question_id = data.get('question_id')
-    student_id = data.get('student_id')
-    text = data.get('text')
+class LeaveFeedbackResource(Resource):
+    def post(self):
+        data = request.get_json()
+        mentor_id = data.get('mentor_id')
+        assessment_id = data.get('assessment_id')
+        question_id = data.get('question_id')
+        student_id = data.get('student_id')
+        text = data.get('text')
 
-    if not mentor_id or not assessment_id or not question_id or not student_id or not text:
-        return jsonify(error='Invalid request data'), 400
+        if not mentor_id or not assessment_id or not question_id or not student_id or not text:
+            return jsonify(error='Invalid request data'), 400
 
-    # Check if the mentor exists
-    mentor = Mentor.query.get(mentor_id)
-    if mentor is None:
-        return jsonify(error='Mentor not found'), 404
+        # Check if the mentor exists
+        mentor = Mentor.query.get(mentor_id)
+        if mentor is None:
+            return jsonify(error='Mentor not found'), 404
 
-    assessment = Assessment.query.filter_by(assessment_id=assessment_id, mentor_id=mentor_id).first()
-    if assessment is None:
-        return jsonify(error='Assessment not found or does not belong to the mentor'), 404
+        assessment = Assessment.query.filter_by(assessment_id=assessment_id, mentor_id=mentor_id).first()
+        if assessment is None:
+            return jsonify(error='Assessment not found or does not belong to the mentor'), 404
 
-    question = Question.query.filter_by(question_id=question_id, assessment_id=assessment_id).first()
-    if question is None:
-        return jsonify(error='Question not found or does not belong to the assessment'), 404
+        question = Question.query.filter_by(question_id=question_id, assessment_id=assessment_id).first()
+        if question is None:
+            return jsonify(error='Question not found or does not belong to the assessment'), 404
 
-    # Check if student exists
-    student = Student.query.get(student_id)
-    if student is None:
-        return jsonify(error='Student not found'), 404
+        # Check if student exists
+        student = Student.query.get(student_id)
+        if student is None:
+            return jsonify(error='Student not found'), 404
 
-    feedback = Feedback(mentor_id=mentor_id, assessment_id=assessment_id, question_id=question_id, student_id=student_id, feedback=text)
-    db.session.add(feedback)
-    db.session.commit()
+        feedback = Feedback(mentor_id=mentor_id, assessment_id=assessment_id, question_id=question_id, student_id=student_id, feedback=text)
+        db.session.add(feedback)
+        db.session.commit()
 
-    return jsonify(message='Feedback submitted successfully')
+        return jsonify(message='Feedback submitted successfully')
 
 
 # Route for mentors to release grades for an assessment
@@ -318,19 +332,20 @@ def leave_feedback():
 
 
 # Route for students to view their grades for a specific assessment
-@app.route('/students/grades/<int:student_id>/<int:assessment_id>', methods=['GET'])
-def view_student_grades(student_id, assessment_id):
-    student = Student.query.get_or_404(student_id)
-    assessment = Assessment.query.get_or_404(assessment_id)
+@ns.route('/students/grades/<int:student_id>/<int:assessment_id>', methods=['GET'])
+class StudentGradeResource(Resource,):
+    def get(self,student_id,assessment_id):
+        student = Student.query.get_or_404(student_id)
+        assessment = Assessment.query.get_or_404(assessment_id)
 
-    grades = Grade.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
+        grades = Grade.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
 
-    grade_data = {
-        'student_id': student.student_id,
-        'student_email': student.email,
-        'assessment_id': assessment.assessment_id,
-        'assessment_title': assessment.title,
-        'grades': [{grade.grade_id: grade.grade} for grade in grades]
-    }
+        grade_data = {
+            'student_id': student.student_id,
+            'student_email': student.email,
+            'assessment_id': assessment.assessment_id,
+            'assessment_title': assessment.title,
+            'grades': [{grade.grade_id: grade.grade} for grade in grades]
+        }
 
-    return jsonify(grade_data)
+        return jsonify(grade_data)
