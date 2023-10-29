@@ -13,3 +13,15 @@ def create():
     assessment_type = data.get('type')
 
     return make_response(jsonify(message='Assessment created successfully'), 200)
+
+from .api import *
+
+
+
+
+
+if __name__ == '__main__':
+    app.run(port=5555, debug=True)
+
+
+
