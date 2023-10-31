@@ -1,4 +1,4 @@
-from .api import app, routes
+from .api import app,  strudents_routes, mentors_routes
 
 
 
