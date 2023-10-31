@@ -15,6 +15,7 @@ def create():
     return make_response(jsonify(message='Assessment created successfully'), 200)
 
 from .api import app, routes
+from .api import app,  strudents_routes, mentors_routes
 
 
 
