@@ -1,4 +1,5 @@
 from ..api import *
+import logging
 
 ns = Namespace('SkillCode',description='CRUD endpoints')
 api.add_namespace(ns)
@@ -79,67 +80,122 @@ class StudentLoginResource(Resource):
             return make_response(jsonify(error='An error occurred'), 500)
         
 
-# # route to display assessment associated to a student and the questions associated to the assessment
-# @ns.route('/students/<int:student_id')
+# route to retrieve a student by id
+@ns.route('/students/<int:student_id>')
+class ViewMentorResource(Resource):
+    def get(self, student_id):
+        try:
+            student = Student.query.get_or_404(student_id)
+            student_data = {
+                'id': student.student_id,
+                'name': student.name,
+                'email': student.email,
+                
+                'assignments': [{
+                    'id': assignment.assignment_id,
+                    'assessment_id': assignment.assessment_id
+                } for assignment in student.assignments]
+            }
+            return make_response(jsonify(student_data))
+        except Exception as e:
+            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-# # Route to view and answer questions for an assessment
-# @app.route('/assessments/<int:assessment_id>/questions/<int:question_number>', methods=['GET', 'POST'])
-# # @jwt_required() 
-# def view_and_answer_question(assessment_id, question_number):
-#     # Retrieve questions on assessment_id and question_number
-#     assessment = Assessment.query.get_or_404(assessment_id)
-#     question = assessment.questions.filter_by(question_id=question_number).first()
+# Endpoint to view assessment invites and associated notifications for a student
+@ns.route('/students/<int:student_id>/assessment_invites')
+class StudentAssessmentInvites(Resource):
+    def get(self, student_id):
+        try:
+            invites = Invite.query.filter_by(student_id=student_id).all()
 
-#     if question is None:
-#         abort(404, description='Question not found')
+            if invites:
+                invite_data = []
+                for invite in invites:
+                    print("invite",invite)
+                    notifications = Notification.query.filter_by(student_id=student_id, assessment_id=invite.assessment_id).all()
+                    print("notification", notifications)
+                    notification_data = [notification.content for notification in notifications if not isinstance(notification.content, Response)]
+                    
+                    # Retrieve the associated assignment for is_accepted attribute
+                    assignment = Assignment.query.filter_by(assessment_id=invite.assessment_id, student_id=invite.student_id).first()
+                    print("assignments", assignment)
+                    is_accepted = assignment.is_accepted if assignment else None
 
-#     # Gets student_id according to token
-#     student_id = get_jwt_identity().get('student_id')
+                      # Fetch the associated mentor name
+                    mentor_name = invite.assessment.mentor.name if invite.assessment and invite.assessment.mentor else None
 
-#     if request.method == 'GET':
-#         # Display the question and options
-#         return jsonify(question_text=question.text, options=question.options.split('\n'))
+                    # Fetch the assessment time limit
+                    assessment_time_limit = invite.assessment.time_limit if invite.assessment else None
 
-#     elif request.method == 'POST':
-#         data = request.get_json()
-#         user_answer = data.get('answer', '')
+                    assessment = invite.assessment  # You need to define this relationship in your model
+                    data = {
+                        "invite_id": invite.invite_id,
+                        "assessment_id": invite.assessment_id,
+                        "notifications": notification_data,
+                        "is_accepted": is_accepted,
+                        "assessment_title": assessment.title if assessment else None,
+                        "assessment_description": assessment.description if assessment else None,
+                        "mentor_name": mentor_name,
+                        "assessment_time_limit": assessment_time_limit
+                    }
+                    invite_data.append(data)
 
-#         # Validates answer
-#         is_correct = user_answer == question.correct_answer
+                return make_response(jsonify(invite_data), 200)
+            else:
+                return make_response(jsonify({"message": "No assessment invites found for this student"}), 404)
 
-#         # Saves the response
-#         response = Response(
-#             assessment_id=assessment_id,
-#             question_id=question_number,
-#             student_id=student_id,
-#             is_correct=is_correct,
-#             answer_text=user_answer  
-#         )
-#         db.session.add(response)
-#         db.session.commit()
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            logging.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
 
-#         # Determines the next question number
-#         next_question_number = question_number + 1
+# route for student to see assigned assessments
+@ns.route('/assessment_details/<int:student_id>')
+class GetAssessmentResource(Resource):
+    def get(self, student_id):
+        # Query to retrieve assignments associated with the student
+        assignments = Assignment.query.filter_by(student_id=student_id).all()
 
-#         # Get the next question
-#         next_question = assessment.questions.filter_by(id=next_question_number).first()
+        if assignments:
+            assessment_data = []
+            for assignment in assignments:
+                assessment = assignment.assessment
+                questions = assessment.questions.all()  # Retrieves all questions related to the assessment
+                student = assignment.student
 
-#         response_data = {
-#             "is_correct": is_correct,
-#             "correct_answer": question.correct_answer,
-#             "student_id": student_id  
-#         }
+                data = {
+                    "assignment_id": assignment.assignment_id,
+                    "is_accepted": assignment.is_accepted,
+                    "assessment_title": assessment.title,
+                    "assessment_description": assessment.description,
+                    "questions": [
+                        {
+                            "question_id": question.question_id,
+                            "title": question.title,
+                            "options": question.options,
+                            "text_question": question.text_question,
+                            "correct_answer": question.correct_answer
+                        }
+                        for question in questions
+                    ]
+                }
 
-#         if next_question:
-#             response_data["next_question"] = {
-#                 "question_text": next_question.text,
-#                 "options": next_question.options.split('\n')
-#             }
-#         else:
-#             response_data["message"] = "Assessment completed. Thank you for participating!"
+                assessment_data.append(data)
+            
+            # Assuming all assignments belong to the same student
+            student = assignments[0].student 
 
-#         return jsonify(response_data)
-    
+            # Prepare the data to be returned
+            response_data = {
+                "assessments": assessment_data,
+                "student_name": student.name if student else "Not assigned",
+                "student_id": student_id
+            }
+
+            return jsonify(response_data)
+        else:
+            return jsonify({"message": "No assignments found for this student"}), 404
+
+
 
     
 # Route for students to view their grades for a specific assessment
@@ -160,65 +216,12 @@ class StudentGradeResource(Resource):
         }
 
         return jsonify(grade_data)
+    
 
-
-@ns.route('/students/<int:student_id>')
-class ViewMentorResource(Resource):
-    def get(self, student_id):
-        try:
-            student = Student.query.get_or_404(student_id)
-            student_data = {
-                'id': student.student_id,
-                'name': student.name,
-                'email': student.email,
-                
-                'assignments': [{
-                    'id': assignment.assignment_id,
-                    'assessment_id': assignment.assessment_id
-                } for assignment in student.assignments]
-            }
-            return make_response(jsonify(student_data))
-        except Exception as e:
-            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-@ns.route('/assessment_details/<int:student_id>')
-class GetAssessmentResource(Resource):
-    def get(self, student_id):
-        # Query to retrieve assignments associated with the student
-        assignments = Assignment.query.filter_by(student_id=student_id).all()
-
-        if assignments:
-            assessment_data = []
-            for assignment in assignments:
-                assessment = assignment.assessment
-                questions = assessment.questions.all()  # Retrieves all questions related to the assessment
-                student = assignment.student
-
-                data = {
-                    "assessment_title": assessment.title,
-                    "assessment_description": assessment.description,
-                    "questions": [
-                        {
-                            "question_id": question.question_id,
-                            "title": question.title,
-                            "options": question.options,
-                            "text_question": question.text_question,
-                            "correct_answer": question.correct_answer
-                        }
-                        for question in questions
-                    ]
-                }
-
-                assessment_data.append(data)
-
-            student = assignments[0].student  # Assuming all assignments belong to the same student
-
-            # Prepare the data to be returned
-            response_data = {
-                "assessments": assessment_data,
-                "student_name": student.name if student else "Not assigned",
-                "student_id": student_id
-            }
-
-            return jsonify(response_data)
-        else:
-            return jsonify({"message": "No assignments found for this student"}), 404
+# Route to accept an invite
+@ns.route("/students")
+class AcceptInviteStudentResource(Resource):
+    # @jwt_required
+    def post(self):
+        pass   
+    
