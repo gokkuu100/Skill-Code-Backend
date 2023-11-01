@@ -44,13 +44,7 @@ def create_fake_data(model):
             'password': hashed_password,
         }
 
-    elif model == Assessment:
-        return {
-            'title': fake.catch_phrase(),
-            'description': fake.text(),
-            'time_limit': str(fake.random_int(min=30, max=120)),
-            'mentor': Mentor.query.order_by(db.func.random()).first()
-        }
+
     elif model == Student:
         password = fake.password()
         hashed_password = hash_password(password)
@@ -60,9 +54,19 @@ def create_fake_data(model):
             'email': fake.email(),
             'password': hashed_password,
         }
+    
+    elif model == Assessment:
+        return {
+            'title': fake.catch_phrase(),
+            'description': fake.text(),
+            'time_limit': str(fake.random_int(min=30, max=120)),
+            'mentor': Mentor.query.order_by(db.func.random()).first()
+        }
+
     elif model == Assignment:
         mentor = Mentor.query.order_by(db.func.random()).first()
         student = Student.query.order_by(db.func.random()).first()
+        print('students are', student)
         return {
             'assessment': Assessment.query.order_by(db.func.random()).first(),
             'mentor': mentor,
@@ -192,7 +196,7 @@ with app.app_context():
     Answer.query.delete()
 
     # Seed each table
-    tables_to_seed = [Mentor, Assessment, Assignment, Student, Question, Grade, Feedback, Notification, Response, Invite, Answer]
+    tables_to_seed = [Mentor, Student, Assessment, Assignment, Question, Grade, Feedback, Notification, Response, Invite, Answer]
     for table in tables_to_seed:
         table_name = table.__name__
         count = 20 
