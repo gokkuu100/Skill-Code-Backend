@@ -1,5 +1,6 @@
 from faker import Faker
 import bcrypt
+import random
 
 from api import *
 
@@ -64,15 +65,18 @@ def create_fake_data(model):
         }
 
     elif model == Assignment:
-        mentor = Mentor.query.order_by(db.func.random()).first()
-        student = Student.query.order_by(db.func.random()).first()
-        print('students are', student)
-        return {
-            'assessment': Assessment.query.order_by(db.func.random()).first(),
-            'mentor': mentor,
-            'student': student,
-            'is_accepted': fake.boolean(chance_of_getting_true=50)
-        }
+            assessment = Assessment.query.order_by(db.func.random()).first()
+            mentor_id = assessment.mentor_id if assessment else None  # Get mentor_id from associated assessment
+            mentor = Mentor.query.get(mentor_id) if mentor_id else None  # Fetch mentor with mentor_id
+
+            student = Student.query.order_by(db.func.random()).first()
+            
+            return {
+                'assessment': assessment,
+                'mentor': mentor,
+                'student': student,
+                'is_accepted': fake.boolean(chance_of_getting_true=50)
+            }
     
     elif model == Question:
         mentor = Mentor.query.order_by(db.func.random()).first()
@@ -131,27 +135,39 @@ def create_fake_data(model):
         }
     
     elif model == Invite:
-        assessment = Assessment.query.order_by(db.func.random()).first()
-        mentor = Mentor.query.order_by(db.func.random()).first()
-        student = Student.query.order_by(db.func.random()).first()
-        return {
-            'assessment_id': assessment.assessment_id,
-            'mentor_id': mentor.mentor_id,
-            'student_id': student.student_id
-        }
+        # Fetch 20 random assignments
+        assignments = Assignment.query.order_by(db.func.random()).limit(20).all()
 
-
-
+        if assignments:
+            for assignment in assignments:
+                # Create an invite for each of the 20 random assignments
+                new_invite = Invite(
+                    assessment_id=assignment.assessment_id,
+                    mentor_id=assignment.mentor_id,
+                    student_id=assignment.student_id
+                )
+                db.session.add(new_invite)  # Add the new invite to the session
 
 
     
     elif model == Notification:
-        student = Student.query.order_by(db.func.random()).first()
-        return {
-            'content': fake.sentence(),
-            'student': student
-        }
-    
+        # Get a random invite
+        invite = Invite.query.order_by(db.func.random()).first()
+
+        if invite:
+            return {
+                'content': fake.sentence(),
+                'student_id': invite.student_id,
+                'assessment_id': invite.assessment_id
+            }
+        else:
+            # If no invites are found, consider setting assessment_id and student_id to None or any default value
+            return {
+                'content': fake.sentence(),
+                'student_id': None,
+                'assessment_id': None
+            }
+        
     elif model == Response:
         assignment = Assignment.query.order_by(db.func.random()).first()
         question = Question.query.order_by(db.func.random()).first()
@@ -196,10 +212,10 @@ with app.app_context():
     Answer.query.delete()
 
     # Seed each table
-    tables_to_seed = [Mentor, Student, Assessment, Assignment, Question, Grade, Feedback, Notification, Response, Invite, Answer]
+    tables_to_seed = [Mentor, Student, Assessment, Assignment, Question, Grade, Feedback, Response, Invite, Answer, Notification]
     for table in tables_to_seed:
         table_name = table.__name__
-        count = 20 
+        count = 20 if table != Invite else 1  
         seed_table(table, count)
         db.session.commit()
         print(f"Successfully seeded {count} records in the {table_name} table.")
