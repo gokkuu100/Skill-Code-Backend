@@ -349,10 +349,43 @@ class StudentGradeResource(Resource):
             error_response = {"message": "An error occurred. Please check the logs for details."}
             return make_response(jsonify(error_response), 500)
         
-# Route to accept an invite
-@ns.route("/students")
-class AcceptInviteStudentResource(Resource):
+# Route to view question feedback 
+@ns.route("/students/<int:student_id>/assessments/<int:assessment_id>/feedback")
+class QuestionFeedbackResource(Resource):
     # @jwt_required
-    def post(self):
-        pass   
-    
+    def get(self, student_id, assessment_id):
+        try:
+            feedback = Feedback.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
+
+            if not feedback:
+                return make_response(jsonify({"message": "No feedback found for this student's assessment"}), 404)
+
+            feedback_data = []
+            for item in feedback:
+                # Get details from related models using the foreign keys
+                question = Question.query.get(item.question_id)
+                mentor = Mentor.query.get(item.mentor_id)
+                assessment = Assessment.query.get(item.assessment_id)
+                student = Student.query.get(item.student_id)
+
+                data = {
+                    "question_id": item.question_id,
+                    "feedback": item.feedback,
+                    "mentor_name": mentor.name if mentor else None,
+                    "student_name": student.name if student else None,
+                    "assessment_title": assessment.title if assessment else None
+                    # Add more details if necessary based on your models
+                }
+                feedback_data.append(data)
+
+            response = {
+                "student_id": student_id,
+                "assessment_id": assessment_id,
+                "feedback": feedback_data
+            }
+
+            return make_response(jsonify(response), 200)
+
+        except Exception as e:
+            app.logger.exception(f"An error occurred: {str(e)}")
+            return make_response(jsonify({"message": "Error occurred while fetching question feedback"}), 500)
