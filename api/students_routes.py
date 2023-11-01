@@ -180,14 +180,45 @@ class ViewMentorResource(Resource):
             return make_response(jsonify(student_data))
         except Exception as e:
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+@ns.route('/assessment_details/<int:student_id>')
+class GetAssessmentResource(Resource):
+    def get(self, student_id):
+        # Query to retrieve assignments associated with the student
+        assignments = Assignment.query.filter_by(student_id=student_id).all()
 
+        if assignments:
+            assessment_data = []
+            for assignment in assignments:
+                assessment = assignment.assessment
+                questions = assessment.questions.all()  # Retrieves all questions related to the assessment
+                student = assignment.student
 
+                data = {
+                    "assessment_title": assessment.title,
+                    "assessment_description": assessment.description,
+                    "questions": [
+                        {
+                            "question_id": question.question_id,
+                            "title": question.title,
+                            "options": question.options,
+                            "text_question": question.text_question,
+                            "correct_answer": question.correct_answer
+                        }
+                        for question in questions
+                    ]
+                }
 
+                assessment_data.append(data)
 
+            student = assignments[0].student  # Assuming all assignments belong to the same student
 
+            # Prepare the data to be returned
+            response_data = {
+                "assessments": assessment_data,
+                "student_name": student.name if student else "Not assigned",
+                "student_id": student_id
+            }
 
-
-
-
-
-
+            return jsonify(response_data)
+        else:
+            return jsonify({"message": "No assignments found for this student"}), 404
