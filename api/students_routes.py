@@ -1,11 +1,13 @@
 from ..api import *
+from flask import request
 import logging
 
 ns = Namespace('SkillCode',description='CRUD endpoints')
 api.add_namespace(ns)
 jwt = JWTManager(app)
 
-
+# Set logging level to capture all messages
+app.logger.setLevel(logging.DEBUG)
 
 # Route for student sign-up
 @ns.route('/students/signup')
@@ -100,6 +102,7 @@ class ViewMentorResource(Resource):
         except Exception as e:
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+
 # Endpoint to view assessment invites and associated notifications for a student
 @ns.route('/students/<int:student_id>/assessment_invites')
 class StudentAssessmentInvites(Resource):
@@ -147,77 +150,205 @@ class StudentAssessmentInvites(Resource):
             error_message = f"An error occurred: {str(e)}"
             logging.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
+        
+# Endpoint to accept assessment invites and associated notifications for a student
+@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/accept_invite')
+class AcceptAssessmentInvite(Resource):
+    def post(self, student_id, assessment_id):
+        try:
+            # Check if the student_id and assessment_id match an existing invite
+            invite = Invite.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
+
+            if invite:
+                assignment = Assignment.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
+
+                if assignment:
+                    assignment.is_accepted = True
+                    assessment_title = assignment.assessment.title if assignment else "Assessment"
+                    student_name = assignment.student.name if assignment else "You"
+                    db.session.commit()
+
+                    return make_response(jsonify({"message": f"Hello, {student_name}. {assessment_title} Invite accepted "}))
+                else:
+                     return make_response(jsonify({"message": f"No assignment found for student {student_id} and assessment {assessment_id}"}), 404)
+            else:
+                return make_response(jsonify({"message": f"No invite found for student {student_id} and assessment {assessment_id}"}), 404)
+            
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            logging.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
 
 # route for student to see assigned assessments
-@ns.route('/assessment_details/<int:student_id>')
+@ns.route('/students/assessment_details/<int:student_id>')
 class GetAssessmentResource(Resource):
     def get(self, student_id):
-        # Query to retrieve assignments associated with the student
-        assignments = Assignment.query.filter_by(student_id=student_id).all()
+        try:
+            # Query to retrieve assignments associated with the student
+            assignments = Assignment.query.filter_by(student_id=student_id).all()
 
-        if assignments:
-            assessment_data = []
-            for assignment in assignments:
-                assessment = assignment.assessment
-                questions = assessment.questions.all()  # Retrieves all questions related to the assessment
-                student = assignment.student
+            if assignments:
+                assessment_data = []
+                for assignment in assignments:
+                    assessment = assignment.assessment
+                    questions = assessment.questions.all()  # Retrieves all questions related to the assessment
+                    student = assignment.student
 
-                data = {
-                    "assignment_id": assignment.assignment_id,
-                    "is_accepted": assignment.is_accepted,
-                    "assessment_title": assessment.title,
-                    "assessment_description": assessment.description,
-                    "questions": [
-                        {
-                            "question_id": question.question_id,
-                            "title": question.title,
-                            "options": question.options,
-                            "text_question": question.text_question,
-                            "correct_answer": question.correct_answer
-                        }
-                        for question in questions
-                    ]
+                    data = {
+                        "assignment_id": assignment.assignment_id,
+                        "is_accepted": assignment.is_accepted,
+                        "assessment_title": assessment.title,
+                        "assessment_description": assessment.description,
+                        "questions": [
+                            {
+                                "question_id": question.question_id,
+                                "title": question.title,
+                                "options": question.options,
+                                "text_question": question.text_question,
+                                "correct_answer": question.correct_answer
+                            }
+                            for question in questions
+                        ]
+                    }
+
+                    assessment_data.append(data)
+                
+                # Assuming all assignments belong to the same student
+                student = assignments[0].student 
+
+                # Prepare the data to be returned
+                response_data = {
+                    "assessments": assessment_data,
+                    "student_name": student.name if student else "Not assigned",
+                    "student_id": student_id
                 }
 
-                assessment_data.append(data)
-            
-            # Assuming all assignments belong to the same student
-            student = assignments[0].student 
-
-            # Prepare the data to be returned
-            response_data = {
-                "assessments": assessment_data,
-                "student_name": student.name if student else "Not assigned",
-                "student_id": student_id
-            }
-
-            return jsonify(response_data)
-        else:
-            return jsonify({"message": "No assignments found for this student"}), 404
+                return make_response(jsonify(response_data))
+            else:
+                return make_response(jsonify({"message": "No assignments found for this student"}), 404)
+        except Exception as e:
+            app.logger.error(f"An error occurred: {str(e)}")
+            return make_response(jsonify({"message": "An error occurred. Please check the logs for details."}), 500)
 
 
+# route for students to attempt assessments
+@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/submit_assessment')
+class PostResponsesResource(Resource):
+    def post(self, student_id, assessment_id):
+        try:
+            student = Student.query.filter_by(student_id=student_id).first()
+            assessment = Assessment.query.filter_by(assessment_id=assessment_id).first()
 
+            if not (assessment and student):
+                return make_response(jsonify({"message": "Assessment or student not found."}), 404)
+
+            # Check if the student is assigned to the assessment
+            assignment = Assignment.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
+
+            if assignment:
+                if assignment.is_accepted:
+                    # Check if the assessment is already submitted by the student
+                    existing_response = Response.query.filter_by(student_id=student_id, assignment_id=assignment.assignment_id).first()
+
+                    if existing_response:
+                        return make_response(jsonify({"message": "Assessment already submitted by the student."}), 400)
+
+                    responses = request.json  # Expecting a list of responses
+
+                    if not responses or not isinstance(responses, list):
+                        return make_response(jsonify({"message": "Invalid or empty responses provided."}), 400)
+
+                    new_responses = []
+                    for response_data in responses:
+                        question_id = response_data.get('question_id')
+                        answer_text = response_data.get('answer_text')
+
+                        # Check if the question exists and is associated with the provided assessment
+                        question = Question.query.filter_by(question_id=question_id, assessment_id=assessment_id).first()
+                        if question:
+                            new_response = Response(
+                                assignment_id=assignment.assignment_id,
+                                question_id=question_id,
+                                student_id=student_id,
+                                answer_text=answer_text
+                            )
+                            new_responses.append(new_response)
+                        else:
+                            return make_response(jsonify({"message": "Invalid question ID or not associated with the provided assessment."}), 404)
+
+                    # Add all new responses to the session and commit
+                    db.session.add_all(new_responses)
+                    db.session.commit()
+
+                    return make_response(jsonify({"message": "Responses submitted successfully."}), 200)
+                else:
+                    return make_response(jsonify({"message": "Invite for this assessment is not accepted."}), 403)
+            else:
+                return make_response(jsonify({"message": "Student is not assigned to this assessment."}), 403)
+
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            app.logger.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
     
 # Route for students to view their grades for a specific assessment
 @ns.route('/students/grades/<int:student_id>/<int:assessment_id>')
 class StudentGradeResource(Resource):
-    def get(self,student_id,assessment_id):
-        student = Student.query.get_or_404(student_id)
-        assessment = Assessment.query.get_or_404(assessment_id)
+    def get(self, student_id, assessment_id):
+        try:
+            student = Student.query.get_or_404(student_id)
+            assessment = Assessment.query.get_or_404(assessment_id)
 
-        grades = Grade.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
+            if assessment is None:
+                error_message = {"message": f"No such assessment found for student {student_id}"}
+                return make_response(jsonify(error_message), 404)
 
-        grade_data = {
-            'student_id': student.student_id,
-            'student_email': student.email,
-            'assessment_id': assessment.assessment_id,
-            'assessment_title': assessment.title,
-            'grades': [{grade.grade_id: grade.grade} for grade in grades]
-        }
+            grades = Grade.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
 
-        return jsonify(grade_data)
-    
+            grade_data = {
+                'student_id': student.student_id,
+                'student_email': student.email,
+                'assessment_id': assessment.assessment_id,
+                'assessment_title': assessment.title,
+                'grades': [{grade.grade_id: grade.grade} for grade in grades]
+            }
 
+            return make_response(jsonify(grade_data), 200)
+        except Exception as e:
+            app.logger.error(f"An error occurred: {str(e)}")
+            error_response = {"message": "An error occurred. Please check the logs for details."}
+            return make_response(jsonify(error_response), 500)
+
+# Route for students to view their grades    
+@ns.route('/students/grades/<int:student_id>')  
+class StudentGradeResource(Resource):
+    def get(self, student_id):
+        try:
+            student = Student.query.get_or_404(student_id)
+
+            grades = Grade.query.filter_by(student_id=student_id).all()
+
+            grade_history = []
+            for grade in grades:
+                grade_data = {
+                    'assessment_id': grade.assessment_id,
+                    'grade_id': grade.grade_id,
+                    'grade': grade.grade
+                }
+                grade_history.append(grade_data)
+
+            student_info = {
+                'student_id': student.student_id,
+                'student_email': student.email,
+                'grade_history': grade_history
+            }
+
+            return make_response(jsonify(student_info), 200)
+        except Exception as e:
+            app.logger.error(f"An error occurred: {str(e)}")
+            error_response = {"message": "An error occurred. Please check the logs for details."}
+            return make_response(jsonify(error_response), 500)
+        
 # Route to accept an invite
 @ns.route("/students")
 class AcceptInviteStudentResource(Resource):
