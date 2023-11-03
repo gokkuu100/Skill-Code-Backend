@@ -184,14 +184,13 @@ class AcceptAssessmentInvite(Resource):
 class GetAssessmentResource(Resource):
     def get(self, student_id):
         try:
-            # Query to retrieve assignments associated with the student
             assignments = Assignment.query.filter_by(student_id=student_id).all()
 
             if assignments:
                 assessment_data = []
                 for assignment in assignments:
                     assessment = assignment.assessment
-                    questions = assessment.questions.all()  # Retrieves all questions related to the assessment
+                    questions = assessment.questions.all()
                     student = assignment.student
 
                     data = {
@@ -199,24 +198,49 @@ class GetAssessmentResource(Resource):
                         "is_accepted": assignment.is_accepted,
                         "assessment_title": assessment.title,
                         "assessment_description": assessment.description,
-                        "questions": [
-                            {
-                                "question_id": question.question_id,
-                                "title": question.title,
-                                "options": question.options,
-                                "text_question": question.text_question,
-                                "correct_answer": question.correct_answer
-                            }
-                            for question in questions
-                        ]
+                        "questions": []
                     }
 
-                    assessment_data.append(data)
-                
-                # Assuming all assignments belong to the same student
-                student = assignments[0].student 
+                    for question in questions:
+                        question_dict = {
+                            "question_id": question.question_id,
+                            "question_type": "Kata" if question.question_type is not None else "mcq",
+                            "title": question.title,
+                            "options": question.options,
+                            "text_question": question.text_question,
+                            "correct_answer": question.correct_answer
+                        }
 
-                # Prepare the data to be returned
+                        if question.question_type == "Kata":
+                            tests = Test.query.filter_by(challenge_id=question.question_id).all()
+                            tests_data = []
+
+                            for test in tests:
+                                test_data = {
+                                    "test_id": test.test_id,
+                                    "test_description": test.test_description,
+                                    "inputs": []
+                                }
+
+                                inputs = TestInput.query.filter_by(test_id=test.test_id).all()
+
+                                for test_input in inputs:
+                                    input_data = {
+                                        "input_id": test_input.input_id,
+                                        "input_value": test_input.input_value,
+                                        "expected_output": test_input.expected_output
+                                    }
+                                    test_data["inputs"].append(input_data)
+
+                                tests_data.append(test_data)
+
+                            question_dict["tests"] = tests_data
+
+                        data["questions"].append(question_dict)
+
+                    assessment_data.append(data)
+
+                student = assignments[0].student
                 response_data = {
                     "assessments": assessment_data,
                     "student_name": student.name if student else "Not assigned",
@@ -229,6 +253,7 @@ class GetAssessmentResource(Resource):
         except Exception as e:
             app.logger.error(f"An error occurred: {str(e)}")
             return make_response(jsonify({"message": "An error occurred. Please check the logs for details."}), 500)
+
 
 
 # route for students to attempt assessments

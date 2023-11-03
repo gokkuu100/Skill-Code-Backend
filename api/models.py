@@ -55,13 +55,28 @@ class Invite(db.Model, SerializerMixin):
 
 class Question(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255))
-    options = db.Column(db.String(255))
-    text_question = db.Column(db.String(255))
-    correct_answer = db.Column(db.String(255))
+    question_type = db.Column(db.String(255))
+    title = db.Column(db.Text)
+    options = db.Column(db.Text)
+    text_question = db.Column(db.Text)
+    correct_answer = db.Column(db.Text)
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'), nullable=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.assignment_id'), nullable=True)
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
+    tests = db.relationship('Test', backref='question', lazy=True)  
+
+class Test(db.Model, SerializerMixin):
+    test_id = db.Column(db.Integer, primary_key=True)
+    challenge_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
+    test_description = db.Column(db.Text)
+    inputs = db.relationship('TestInput', backref='test', lazy=True)
+
+class TestInput(db.Model):
+    input_id = db.Column(db.Integer, primary_key=True)
+    test_id = db.Column(db.Integer, db.ForeignKey('test.test_id'))
+    input_value = db.Column(db.Text)
+    expected_output = db.Column(db.String(255))  # Unique expected output for each input
+
 
 class Grade(db.Model, SerializerMixin):
     grade_id = db.Column(db.Integer, primary_key=True)

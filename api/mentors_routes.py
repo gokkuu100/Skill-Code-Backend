@@ -115,40 +115,38 @@ class ViewMentorResource(Resource):
             return make_response(jsonify({'error':'An error occurred'}), 500)
 
 
+
 # Route to create an assessment
-# @ns.route('/assessments/create')
-# # @jwt_required()
-# def create_assessment():
-#     def post(self):
+@app.route('/assessments/create', methods=['POST'])
+@jwt_required()
+def create_assessment():
+    data = request.get_json()
+    title = data.get('title', '')
+    questions_data = data.get('questions', [])
 
-#         data = request.get_json()
-#         title = data.get('title', '')
-#         questions_data = data.get('questions', [])
+    if not title or not questions_data:
+        return jsonify(error='Invalid request data'), 400
+    
+    # Get mentor_id from the token
+    mentor_id = get_jwt_identity()['mentor_id']
 
-#         if not title or not questions_data:
-#             return jsonify(error='Invalid request data'), 400
-        
-#         # Get mentor_id from the token
-#         mentor_id = 1
-#         # mentor_id = get_jwt_identity()['mentor_id']
+    assessment = Assessment(title=title, mentor_id=mentor_id)
+    for question_data in questions_data:
+        text = question_data.get('text', '')
+        options = question_data.get('options', [])
+        correct_answer = question_data.get('correct_answer', '')
 
-#         assessment = Assessment(title=title, mentor_id=mentor_id)
-#         for question_data in questions_data:
-#             text = question_data.get('text', '')
-#             options = question_data.get('options', [])
-#             correct_answer = question_data.get('correct_answer', '')
+        if not text or len(options) != 4 or not correct_answer:
+            return jsonify(error='Invalid question data'), 400
 
-#             if not text or len(options) != 4 or not correct_answer:
-#                 return jsonify(error='Invalid question data'), 400
+        question_options = '\n'.join(options)
+        question = Question(text=text, options=question_options, correct_answer=correct_answer)
+        assessment.questions.append(question)
 
-#             question_options = '\n'.join(options)
-#             question = Question(text=text, options=question_options, correct_answer=correct_answer)
-#             assessment.questions.append(question)
+    db.session.add(assessment)
+    db.session.commit()
 
-#         db.session.add(assessment)
-#         db.session.commit()
-
-#         return jsonify(message='Assessment created successfully')
+    return jsonify(message='Assessment created successfully')
 
 # View assessment based on its id
 @ns.route('/assessments/<int:assessment_id>')
