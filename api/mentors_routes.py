@@ -274,13 +274,16 @@ class ReleaseGradesResource(Resource):
             assessment_id = data.get('assessment_id')
             score = data.get('score')
             student_id = data.get("student_id")
-            assignment_id = data.get("assignment")
+            # assignment_id = data.get("assignment")
 
             if not mentor_id or not assessment_id or not score:
                 response = make_response(jsonify(error='Invalid request data'), 400)
                 return response
 
-            grade = Grade(assessment_id=assessment_id, student_id=student_id, grade=score, assignment_id = assignment_id)
+            # grade = Grade(assessment_id=assessment_id, student_id=student_id, grade=score, assignment_id = assignment_id)
+
+
+            grade = Grade(assessment_id=assessment_id, student_id=student_id, grade=score)
             db.session.add(grade)
             db.session.commit()
 

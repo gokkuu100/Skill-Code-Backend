@@ -15,7 +15,7 @@ class StudentSignupResource(Resource):
     def post(self):
         try:
             data = request.get_json()
-
+            name = data.get('name')
             email = data.get('email')
             password = data.get('password')
 
@@ -31,7 +31,7 @@ class StudentSignupResource(Resource):
             password_hash = generate_password_hash(password)
 
             # New student object
-            new_student = Student(email=email, password=password_hash)
+            new_student = Student(name=name, email=email, password=password_hash)
             db.session.add(new_student)
             db.session.commit()
 
@@ -202,7 +202,6 @@ class GetAssessmentResource(Resource):
                         "questions": [
                             {
                                 "question_id": question.question_id,
-                                "title": question.title,
                                 "options": question.options,
                                 "text_question": question.text_question,
                                 "correct_answer": question.correct_answer
