@@ -55,12 +55,10 @@ class Invite(db.Model, SerializerMixin):
 
 class Question(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255))
-    options = db.Column(db.String(255))
     text_question = db.Column(db.String(255))
+    options = db.Column(db.String(255))
     correct_answer = db.Column(db.String(255))
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'), nullable=True)
-    assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.assignment_id'), nullable=True)
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
 
 class Grade(db.Model, SerializerMixin):

@@ -14,13 +14,13 @@ def create():
 
     return make_response(jsonify(message='Assessment created successfully'), 200)
 
-from .api import app, routes
-from .api import app,  strudents_routes, mentors_routes
+
+from .api import app,  students_routes, mentors_routes
 
 
 
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    app.run(port=6000, debug=True)
 
 
 
