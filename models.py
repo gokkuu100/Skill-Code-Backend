@@ -30,9 +30,9 @@ class Assessment(db.Model, SerializerMixin):
     time_limit = db.Column(db.String(50))
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
     
-    assignments = db.relationship('Assignment', backref='assigned_assessments', lazy='dynamic')
+    assignments = db.relationship('Assignment', backref='assessment', lazy='dynamic')
     questions = db.relationship('Question', backref='assessment', lazy='dynamic')
-    notifications = db.relationship('Notification', backref='assessment', lazy='dynamic')
+    grades = db.relationship('Grade', backref='assessment', lazy='dynamic')
 
 class Assignment(db.Model, SerializerMixin):
     assignment_id = db.Column(db.Integer, primary_key=True)
@@ -41,9 +41,9 @@ class Assignment(db.Model, SerializerMixin):
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
     is_accepted = db.Column(db.Boolean, default=False)
     
-    student = db.relationship('Student', backref='assignment_student')
-    assessment = db.relationship('Assessment', backref='assessment_assignment')
-    responses = db.relationship('Response', backref='assignment_responses', lazy='dynamic')
+    student = db.relationship('Student', backref='assignments')
+    assessment = db.relationship('Assessment', backref='assignments')
+    responses = db.relationship('Response', backref='assignment', lazy='dynamic')
     # questions = db.relationship('Question', backref='assignment', lazy='dynamic')
 
 class Invite(db.Model, SerializerMixin):
@@ -51,14 +51,16 @@ class Invite(db.Model, SerializerMixin):
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
-    assessment = db.relationship('Assessment', backref='invites') 
+    is_accepted = db.Column(db.Boolean, default=False)
 
 class Question(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, primary_key=True)
-    text_question = db.Column(db.String(255))
+    title = db.Column(db.String(255))
     options = db.Column(db.String(255))
+    text_question = db.Column(db.String(255))
     correct_answer = db.Column(db.String(255))
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'), nullable=True)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.assignment_id'), nullable=True)
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
 
 class Grade(db.Model, SerializerMixin):
@@ -78,7 +80,7 @@ class Student(db.Model, SerializerMixin):
     password = db.Column(db.String(255))
     email = db.Column(db.String(255), unique=True)
 
-    assignments = db.relationship('Assignment', backref='student_assignments', lazy='dynamic')
+    assignments = db.relationship('Assignment', backref='student', lazy='dynamic')
     notifications = db.relationship('Notification', backref='student', lazy='dynamic')
 
 class Answer(db.Model, SerializerMixin):
@@ -91,21 +93,14 @@ class Answer(db.Model, SerializerMixin):
 
 class Feedback(db.Model, SerializerMixin):
     feedback_id = db.Column(db.Integer, primary_key=True)
-
-    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
-    mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
-    question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
     feedback = db.Column(db.String(255))
-
+    question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
+    mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
 
 class Notification(db.Model, SerializerMixin):
     notification_id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(255))
-
-    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
-    assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
-
+    student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
 
 class Response(db.Model, SerializerMixin):
     response_id = db.Column(db.Integer, primary_key=True)
@@ -117,6 +112,4 @@ class Response(db.Model, SerializerMixin):
 
     student = db.relationship('Student', backref='responses') 
 
-    assignment = db.relationship('Assignment', backref='response_assignment') 
-
-
+    assignment = db.relationship('Assignment', backref='responses') 
