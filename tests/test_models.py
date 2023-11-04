@@ -195,10 +195,12 @@ def test_create_and_get_notification(client):
     with app.app_context():
 
         existing_student = Student.query.first()
+        existing_assessment = Assessment.query.first()
 
         notification = Notification(
             content="You have a new message.",
-            student_id=existing_student.student_id
+            student_id=existing_student.student_id,
+            assessment_id = existing_assessment.assessment_id
         )
         db.session.add(notification)
         db.session.commit()
