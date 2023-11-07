@@ -225,12 +225,13 @@ class LeaveFeedbackResource(Resource):
     def post(self):
         try:
             data = request.get_json()
-            mentor_id = data.get('mentor_id')
+            
             assessment_id = data.get('assessment_id')
             question_id = data.get('question_id')
             student_id = data.get('student_id')
             text = data.get('text')
-
+            # mentor_id = get_jwt_identity()['mentor_id']
+            mentor_id = 1
             if not mentor_id or not assessment_id or not question_id or not student_id or not text:
                 return make_response(jsonify({"error": 'Invalid request data'}), 400)
 
@@ -310,8 +311,8 @@ class StudentAnswersResource(Resource):
             abort(403, description='Access forbidden: This assessment does not belong to your account.')
 
         # Check if the student is associated with the assessment
-        if student not in assessment.students:
-            abort(404, description='Student not found or not associated with this assessment.')
+        # if student not in assessment.students:
+        #     abort(404, description='Student not found or not associated with this assessment.')
 
         # Retrieve the student's responses for the assessment
         responses = Response.query.filter_by(assessment_id=assessment_id, student_id=student_id).all()
@@ -426,7 +427,7 @@ class ViewStudentAnswers(Resource):
 
             for assignment in mentor_assignments:
                 response = {
-                    'assignment_id': assignment.assignment_id,
+                    'assessment_id': assignment.assessment.assessment_id,
                     'assessment_title': assignment.assessment.title,
                     'responses': []
                 }
@@ -458,3 +459,39 @@ class ViewStudentAnswers(Resource):
             error_message = f"An error occurred while fetching student answers: {str(e)}"
             app.logger.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
+        
+#route to update score per question      
+@ns.route('/update_score')
+class UpdateScoreResource(Resource):
+    def put(self):
+        data = request.get_json()
+        student_id = data.get('student_id')
+        assessment_id = data.get('assessment_id')
+        question_id = data.get('question_id')
+        new_score = data.get('score')
+        print(new_score)
+
+        if student_id is None or assessment_id is None or new_score is None or question_id is None:
+            return make_response(jsonify({"error": "Missing required data"}), 400)
+
+        # Check if the student and assessment are in the assignment
+        assignment = Assignment.query.filter_by(
+            student_id=student_id,
+            assessment_id=assessment_id
+        ).first()
+
+        if assignment is None:
+            return make_response(jsonify({"error": "Assignment not found for the given student and assessment"}), 404)
+        response = Response.query.filter_by(
+            student_id=student_id,
+            assignment_id=assignment.assignment_id,
+            question_id=question_id
+        ).first()
+        if response is None:
+            return make_response(jsonify({"error": "Question not attempted"}), 404)
+        # Update the score
+        response.score = new_score
+        db.session.commit()
+
+        return make_response(jsonify({"message": "Score updated successfully"}), 200)
+    
