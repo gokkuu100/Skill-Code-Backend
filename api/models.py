@@ -29,6 +29,7 @@ class Assessment(db.Model, SerializerMixin):
     description = db.Column(db.String(255))
     time_limit = db.Column(db.String(50))
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     
     assignments = db.relationship('Assignment', backref='assigned_assessments', lazy='dynamic')
     questions = db.relationship('Question', backref='assessment', lazy='dynamic')
@@ -52,6 +53,7 @@ class Invite(db.Model, SerializerMixin):
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
     assessment = db.relationship('Assessment', backref='invites') 
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 class Question(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, primary_key=True)
@@ -60,6 +62,7 @@ class Question(db.Model, SerializerMixin):
     correct_answer = db.Column(db.String(255))
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'), nullable=True)
     mentor_id = db.Column(db.Integer, db.ForeignKey('mentor.mentor_id'))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 class Grade(db.Model, SerializerMixin):
     grade_id = db.Column(db.Integer, primary_key=True)
@@ -67,6 +70,7 @@ class Grade(db.Model, SerializerMixin):
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id'))
     assignment_id = db.Column(db.Integer, db.ForeignKey('assignment.assignment_id'))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     assessment = db.relationship('Assessment', backref='grades')
     student = db.relationship('Student', backref='grades')
@@ -77,6 +81,7 @@ class Student(db.Model, SerializerMixin):
     name = db.Column(db.String(255))
     password = db.Column(db.String(255))
     email = db.Column(db.String(255), unique=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     assignments = db.relationship('Assignment', backref='student_assignments', lazy='dynamic')
     notifications = db.relationship('Notification', backref='student', lazy='dynamic')
@@ -97,11 +102,13 @@ class Feedback(db.Model, SerializerMixin):
     question_id = db.Column(db.Integer, db.ForeignKey('question.question_id'))
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
     feedback = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
 class Notification(db.Model, SerializerMixin):
     notification_id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
     assessment_id = db.Column(db.Integer, db.ForeignKey('assessment.assessment_id'))
@@ -114,6 +121,7 @@ class Response(db.Model, SerializerMixin):
     student_id = db.Column(db.Integer, db.ForeignKey('student.student_id')) 
     answer_text = db.Column(db.String(255))
     score = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     student = db.relationship('Student', backref='responses') 
 

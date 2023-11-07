@@ -1,8 +1,8 @@
-"""added tables
+"""models
 
-Revision ID: da63639ff447
+Revision ID: d9c0459b6536
 Revises: 
-Create Date: 2023-11-04 11:44:48.274511
+Create Date: 2023-11-04 16:35:37.368150
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'da63639ff447'
+revision = 'd9c0459b6536'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -31,6 +31,7 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=True),
     sa.Column('password', sa.String(length=255), nullable=True),
     sa.Column('email', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('student_id'),
     sa.UniqueConstraint('email')
     )
@@ -40,6 +41,7 @@ def upgrade():
     sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('time_limit', sa.String(length=50), nullable=True),
     sa.Column('mentor_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['mentor_id'], ['mentor.mentor_id'], ),
     sa.PrimaryKeyConstraint('assessment_id')
     )
@@ -59,6 +61,7 @@ def upgrade():
     sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.Column('mentor_id', sa.Integer(), nullable=True),
     sa.Column('student_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
     sa.ForeignKeyConstraint(['mentor_id'], ['mentor.mentor_id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['student.student_id'], ),
@@ -67,6 +70,7 @@ def upgrade():
     op.create_table('notification',
     sa.Column('notification_id', sa.Integer(), nullable=False),
     sa.Column('content', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('student_id', sa.Integer(), nullable=True),
     sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
@@ -80,6 +84,7 @@ def upgrade():
     sa.Column('correct_answer', sa.String(length=255), nullable=True),
     sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.Column('mentor_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
     sa.ForeignKeyConstraint(['mentor_id'], ['mentor.mentor_id'], ),
     sa.PrimaryKeyConstraint('question_id')
@@ -101,6 +106,7 @@ def upgrade():
     sa.Column('question_id', sa.Integer(), nullable=True),
     sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.Column('feedback', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
     sa.ForeignKeyConstraint(['mentor_id'], ['mentor.mentor_id'], ),
     sa.ForeignKeyConstraint(['question_id'], ['question.question_id'], ),
@@ -113,6 +119,7 @@ def upgrade():
     sa.Column('assessment_id', sa.Integer(), nullable=True),
     sa.Column('student_id', sa.Integer(), nullable=True),
     sa.Column('assignment_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
     sa.ForeignKeyConstraint(['assignment_id'], ['assignment.assignment_id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['student.student_id'], ),
@@ -125,6 +132,7 @@ def upgrade():
     sa.Column('student_id', sa.Integer(), nullable=True),
     sa.Column('answer_text', sa.String(length=255), nullable=True),
     sa.Column('score', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['assignment_id'], ['assignment.assignment_id'], ),
     sa.ForeignKeyConstraint(['question_id'], ['question.question_id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['student.student_id'], ),
