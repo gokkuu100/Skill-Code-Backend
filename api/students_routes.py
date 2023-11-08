@@ -15,7 +15,7 @@ class StudentSignupResource(Resource):
     def post(self):
         try:
             data = request.get_json()
-
+            name = data.get('name')
             email = data.get('email')
             password = data.get('password')
 
@@ -31,7 +31,7 @@ class StudentSignupResource(Resource):
             password_hash = generate_password_hash(password)
 
             # New student object
-            new_student = Student(email=email, password=password_hash)
+            new_student = Student(name=name, email=email, password=password_hash)
             db.session.add(new_student)
             db.session.commit()
 
@@ -102,6 +102,26 @@ class ViewMentorResource(Resource):
         except Exception as e:
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+# get all students
+# Route to retrieve all students
+@ns.route('/students')
+class AllStudentsResource(Resource):
+    def get(self):
+        try:
+            students = Student.query.all()
+            students_data = []
+
+            for student in students:
+                student_info = {
+                    'id': student.student_id,
+                    'name': student.name,
+                    'email': student.email
+                }
+                students_data.append(student_info)
+
+            return make_response(jsonify(students_data))
+        except Exception as e:
+            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # Endpoint to view assessment invites and associated notifications for a student
 @ns.route('/students/<int:student_id>/assessment_invites')
@@ -202,7 +222,10 @@ class GetAssessmentResource(Resource):
                         "questions": [
                             {
                                 "question_id": question.question_id,
+<<<<<<< HEAD
                                 # "title": question.title,
+=======
+>>>>>>> 9cfde5f3d525e7a70c6e1970256dbe39180c4361
                                 "options": question.options,
                                 "text_question": question.text_question,
                                 "correct_answer": question.correct_answer
@@ -235,10 +258,11 @@ class GetAssessmentResource(Resource):
 @ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/submit_assessment')
 class PostResponsesResource(Resource):
     def post(self, student_id, assessment_id):
+        print("student", student_id, "assessment", assessment_id)
         try:
             student = Student.query.filter_by(student_id=student_id).first()
             assessment = Assessment.query.filter_by(assessment_id=assessment_id).first()
-
+            print(assessment.assessment_id)
             if not (assessment and student):
                 return make_response(jsonify({"message": "Assessment or student not found."}), 404)
 
@@ -254,6 +278,7 @@ class PostResponsesResource(Resource):
                         return make_response(jsonify({"message": "Assessment already submitted by the student."}), 400)
 
                     responses = request.json  # Expecting a list of responses
+                    print("respinses",responses)
 
                     if not responses or not isinstance(responses, list):
                         return make_response(jsonify({"message": "Invalid or empty responses provided."}), 400)
@@ -264,7 +289,8 @@ class PostResponsesResource(Resource):
                         answer_text = response_data.get('answer_text')
 
                         # Check if the question exists and is associated with the provided assessment
-                        question = Question.query.filter_by(question_id=question_id, assessment_id=assessment_id).first()
+                        question = Question.query.filter_by(question_id=question_id, assessment_id=assessment.assessment_id).first()
+                        print("question",question)
                         if question:
                             new_response = Response(
                                 assignment_id=assignment.assignment_id,

@@ -6,13 +6,18 @@ from flask import Flask, request, jsonify, abort, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_bcrypt import generate_password_hash, check_password_hash
 from flask_restx import Api, Resource, Namespace, abort
+<<<<<<< HEAD
 from flask_mail import Mail, Message
 
+=======
+from flask_cors import CORS
+>>>>>>> 9cfde5f3d525e7a70c6e1970256dbe39180c4361
 
 from flask_sqlalchemy import SQLAlchemy
 import secrets
 
 app = Flask(__name__)
+CORS(app)
 
 # Setup app configs
 secret_key = secrets.token_hex(16)
