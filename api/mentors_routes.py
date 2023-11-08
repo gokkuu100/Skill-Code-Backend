@@ -115,10 +115,11 @@ class ViewMentorResource(Resource):
                     abort(500, "An error occurred while fetching the assessment.")
         else:
             return make_response(jsonify({'error':'An error occurred'}), 500)
+        
 # Assessment create
 @ns.route('/assessments/create')
 class CreateAssessmentResource(Resource):
-    # @jwt_required()
+    @jwt_required()
     def post(self):
         try:
             data = request.get_json()
@@ -132,8 +133,7 @@ class CreateAssessmentResource(Resource):
                 return jsonify(error='Invalid request data'), 400
 
             # Get mentor_id from the token
-            # mentor_id = get_jwt_identity()['mentor_id']
-            mentor_id = 1
+            mentor_id = get_jwt_identity()['mentor_id']
 
             # Create a new assessment object
             assessment = Assessment(title=title, description=description, mentor_id=mentor_id)
@@ -219,10 +219,9 @@ class AssessmentsResource(Resource):
         return jsonify(assessments=assessment_list)
 
 
-    
 # Feedback route
 @ns.route('/mentors/feedback')
-# @jwt_required()
+@jwt_required()
 class LeaveFeedbackResource(Resource):
     def post(self):
         try:
@@ -232,8 +231,7 @@ class LeaveFeedbackResource(Resource):
             question_id = data.get('question_id')
             student_id = data.get('student_id')
             text = data.get('text')
-            # mentor_id = get_jwt_identity()['mentor_id']
-            mentor_id = 1
+            mentor_id = get_jwt_identity()['mentor_id']
             if not mentor_id or not assessment_id or not question_id or not student_id or not text:
                 return make_response(jsonify({"error": 'Invalid request data'}), 400)
 
@@ -313,8 +311,8 @@ class StudentAnswersResource(Resource):
             abort(403, description='Access forbidden: This assessment does not belong to your account.')
 
         # Check if the student is associated with the assessment
-        # if student not in assessment.students:
-        #     abort(404, description='Student not found or not associated with this assessment.')
+        if student not in assessment.students:
+            abort(404, description='Student not found or not associated with this assessment.')
 
         # Retrieve the student's responses for the assessment
         responses = Response.query.filter_by(assessment_id=assessment_id, student_id=student_id).all()
@@ -336,35 +334,43 @@ class StudentAnswersResource(Resource):
 # Route to send invitations as assignments
 @ns.route('/assessments/invite')
 class InviteStudentResource(Resource):
-    # @jwt_required()
+    @jwt_required()
     def post(self):
         try:
             data = request.get_json()
             assessment_id = data.get('assessment_id')
             student_email = data.get('student_email')
-            message = data.get('message')
 
-            # Get the mentor_id from the token
+            # Get the mentor_id and mentor's email from the token
             mentor_id = get_jwt_identity().get('mentor_id')
+            mentor_email = get_jwt_identity().get('email')
 
+            # Check if the assessment belongs to the logged-in mentor
             assessment = Assessment.query.filter_by(assessment_id=assessment_id, mentor_id=mentor_id).first()
             if not assessment:
                 return make_response(jsonify(error='Assessment not found or does not belong to the mentor'), 404)
 
+            # Check if the student with the provided email exists
             student = Student.query.filter_by(email=student_email).first()
             if not student:
                 return make_response(jsonify(error='Student not found with the provided email'), 404)
 
             # Create an assignment record for the student
-            assignment = Assignment(assessment_id=assessment_id, mentor_id=mentor_id, student_id=student.student_id, is_accepted=False)
+            assignment = Assignment(
+                assessment_id=assessment_id,
+                mentor_id=mentor_id,
+                student_id=student.student_id,
+                is_accepted=False
+            )
             db.session.add(assignment)
 
             # Create an invite record linking the assessment, mentor, and student
-            invite = Invite(assessment_id=assessment_id, mentor_id=mentor_id, student_id=student.student_id)
+            invite = Invite(
+                assessment_id=assessment_id,
+                mentor_id=mentor_id,
+                student_id=student.student_id
+            )
             db.session.add(invite)
-
-            notification = Notification(content=message, student_id=student.student_id, assessment_id=assessment_id)
-            db.session.add(notification)
 
             db.session.commit()
 
@@ -375,5 +381,6 @@ class InviteStudentResource(Resource):
 
         except Exception as e:
             return make_response(jsonify({'error': str(e)}), 500)
+
 
 
