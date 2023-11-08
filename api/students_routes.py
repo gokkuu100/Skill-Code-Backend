@@ -202,7 +202,7 @@ class GetAssessmentResource(Resource):
                         "questions": [
                             {
                                 "question_id": question.question_id,
-                                "title": question.title,
+                                # "title": question.title,
                                 "options": question.options,
                                 "text_question": question.text_question,
                                 "correct_answer": question.correct_answer

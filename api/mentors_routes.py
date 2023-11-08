@@ -1,4 +1,6 @@
 from ..api import *
+from flask_jwt_extended import get_jwt_identity
+
 
 ns = Namespace('SkillCode',description='CRUD endpoints')
 api.add_namespace(ns)
@@ -325,6 +327,7 @@ class StudentAnswersResource(Resource):
         return jsonify(assessment_title=assessment.title, student_email=student.email, responses=response_data)@ns.route('/send_invitations')
     
 
+
 # Route to send invitations as assignments
 @ns.route('/assessments/invite')
 class InviteStudentResource(Resource):
@@ -335,8 +338,9 @@ class InviteStudentResource(Resource):
             assessment_id = data.get('assessment_id')
             student_email = data.get('student_email')
 
-            # Get the mentor_id from the token
+            # Get the mentor_id and mentor's email from the token
             mentor_id = get_jwt_identity().get('mentor_id')
+            mentor_email = get_jwt_identity().get('email')
 
             # Check if the assessment belongs to the logged-in mentor
             assessment = Assessment.query.filter_by(assessment_id=assessment_id, mentor_id=mentor_id).first()
@@ -349,18 +353,28 @@ class InviteStudentResource(Resource):
                 return make_response(jsonify(error='Student not found with the provided email'), 404)
 
             # Create an assignment record for the student
-            assignment = Assignment(assessment_id=assessment_id, mentor_id=mentor_id, student_id=student.student_id, is_accepted=False)
+            assignment = Assignment(
+                assessment_id=assessment_id,
+                mentor_id=mentor_id,
+                student_id=student.student_id,
+                is_accepted=False
+            )
             db.session.add(assignment)
 
             # Create an invite record linking the assessment, mentor, and student
-            invite = Invite(assessment_id=assessment_id, mentor_id=mentor_id, student_id=student.student_id)
+            invite = Invite(
+                assessment_id=assessment_id,
+                mentor_id=mentor_id,
+                student_id=student.student_id
+            )
             db.session.add(invite)
 
             db.session.commit()
+
+            # Send invitation email using Flask-Mail with the mentor's email as the sender
+            send_invitation_email(mentor_email, student_email, assessment.title)
 
             return make_response(jsonify(message='Student invited to the assessment successfully'), 201)
 
         except Exception as e:
             return make_response(jsonify({'error': str(e)}), 500)
-
-
