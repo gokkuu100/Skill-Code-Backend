@@ -1,9 +1,14 @@
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///skill_code.db' 
+
 db = SQLAlchemy(app)
+
+mail = Mail(app)
+
 
 @app.route('/assessments/create', methods=['POST'])
 def create():
@@ -15,7 +20,7 @@ def create():
     return make_response(jsonify(message='Assessment created successfully'), 200)
 
 
-from .api import app,  students_routes, mentors_routes
+from .api import app, students_routes, mentors_routes
 
 
 
