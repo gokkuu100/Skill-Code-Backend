@@ -86,13 +86,15 @@ class MentorLoginResource(Resource):
         except Exception as e:
             # Handle other exceptions and return a generic error response
             return make_response(jsonify(error='An error occurred'), 500)
+        
+# Profile for specific mentor
 @ns.route('/mentors/profile')
 class ViewMentorResource(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         try:
             # Get the mentor ID from the JWT token
-            current_user = get_jwt()
+            current_user = get_jwt_identity()
             mentor_id = current_user.get("mentor_id")
             
             if mentor_id is None:
@@ -101,14 +103,24 @@ class ViewMentorResource(Resource):
 
             mentor = Mentor.query.get_or_404(mentor_id)
 
+            # Retrieve assessments created by the mentor
+            assessments = Assessment.query.filter_by(mentor_id=mentor_id).all()
+            assessment_list = []
+            for assessment in assessments:
+                assessment_data = {
+                    'id': assessment.assessment_id,
+                    'title': assessment.title,
+                    'description': assessment.description,
+                }
+                assessment_list.append(assessment_data)
+
             mentor_data = {
                 'id': mentor.mentor_id,
                 'name': mentor.name,
                 'email': mentor.email,
-                # Add other attributes here
+                'assessments': assessment_list
             }
 
-            # Return the mentor data in a JSON response with status code 200 (OK)
             return make_response(jsonify(mentor_data), 200)
 
         except Exception as e:
@@ -117,9 +129,6 @@ class ViewMentorResource(Resource):
             return make_response(jsonify({'error': 'An unexpected error occurred'}), 500)
 
 
-
-
-    
 # Assessment create
 @ns.route('/assessments/create')
 class CreateAssessmentResource(Resource):
@@ -225,8 +234,8 @@ class AssessmentsResource(Resource):
 
 # Feedback route
 @ns.route('/mentors/feedback')
-@jwt_required()
 class LeaveFeedbackResource(Resource):
+    @jwt_required()
     def post(self):
         try:
             data = request.get_json()
@@ -261,7 +270,7 @@ class LeaveFeedbackResource(Resource):
             db.session.add(feedback)
             db.session.commit()
 
-            return jsonify({"message": 'Feedback submitted successfully'})
+            return make_response(jsonify({"message": 'Feedback submitted successfully'}))
 
         except Exception as e:
             # Log the error or print to the console for debugging
