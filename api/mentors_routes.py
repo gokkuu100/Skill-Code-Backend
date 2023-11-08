@@ -179,7 +179,7 @@ class CreateAssessmentResource(Resource):
             return make_response(jsonify(message='Assessment and questions created successfully', assessment_id=assessment.assessment_id), 201)
 
         except Exception as e:
-            db.session.rollback()  # Rollback the transaction in case of an error
+            db.session.rollback()  
             return make_response(jsonify(error=str(e)), 500)     
         
 # View assessment based on its id
@@ -232,7 +232,7 @@ class AssessmentsResource(Resource):
         return jsonify(assessments=assessment_list)
 
 
-# Feedback route
+# Route mentor to give feedback on specific question of assessment
 @ns.route('/mentors/feedback')
 class LeaveFeedbackResource(Resource):
     @jwt_required()
@@ -278,70 +278,29 @@ class LeaveFeedbackResource(Resource):
             # Return a generic error message or handle the exception as needed
             return make_response(jsonify({"error": 'An error occurred while processing the request'}), 500)
 
+   
+# Route to view each student's answer
+@app.route('/SkillCode/assessments/<int:assessment_id>/students/<int:student_id>/answers', methods=['GET'])
+def get_student_answers(assessment_id, student_id):
+    assessment = Assessment.query.get(assessment_id)
+    if assessment:
+        assignment = Assignment.query.filter_by(assessment_id=assessment_id, student_id=student_id).first()
+        if assignment:
+            
+            responses = assignment.responses
+            response_data = []
+            for response in responses:
+                response_data.append({
+                    'question_id': response.question_id,
+                    'answer_text': response.answer_text,
+                    # 'score': response.score
+                })
+            return jsonify({'responses': response_data}), 200
+        else:
+            return jsonify({'error': 'Assignment not found'}), 404
+    else:
+        return jsonify({'error': 'Assessment not found'}), 404
 
-# Route for mentors to release grades for an assessment
-@ns.route('/mentors/grades')
-class ReleaseGradesResource(Resource):
-    def post(self):
-        try:
-            data = request.get_json()
-            mentor_id = data.get('mentor_id')
-            assessment_id = data.get('assessment_id')
-            score = data.get('score')
-            student_id = data.get("student_id")
-            # assignment_id = data.get("assignment")
-
-            if not mentor_id or not assessment_id or not score:
-                response = make_response(jsonify(error='Invalid request data'), 400)
-                return response
-
-            # grade = Grade(assessment_id=assessment_id, student_id=student_id, grade=score, assignment_id = assignment_id)
-
-
-            grade = Grade(assessment_id=assessment_id, student_id=student_id, grade=score)
-            db.session.add(grade)
-            db.session.commit()
-
-            response = make_response(jsonify(message='Grades released successfully'), 200)
-            return response
-        except Exception as e:
-            app.logger.error(f"An error occurred: {str(e)}")
-            response = make_response(jsonify(error='An error occurred while processing the request'), 500)
-            return response
-        
-# Route to view student answer as per assignment
-@ns.route('/assessments/<int:assessment_id>/students/<int:student_id>/answers')
-class StudentAnswersResource(Resource):
-    @jwt_required()
-    def get(self, assessment_id, student_id):
-        # Retrieve the assessment and student based on IDs
-        assessment = Assessment.query.get_or_404(assessment_id)
-        student = Student.query.get_or_404(student_id)
-
-        # Check if the assessment belongs to the mentor associated with the token
-        mentor_id = get_jwt_identity().get('mentor_id')
-        if assessment.mentor_id != mentor_id:
-            abort(403, description='Access forbidden: This assessment does not belong to your account.')
-
-        # Check if the student is associated with the assessment
-        if student not in assessment.students:
-            abort(404, description='Student not found or not associated with this assessment.')
-
-        # Retrieve the student's responses for the assessment
-        responses = Response.query.filter_by(assessment_id=assessment_id, student_id=student_id).all()
-
-        # Prepare response 
-        response_data = []
-        for response in responses:
-            question_text = Question.query.get(response.question_id).text
-            response_data.append({
-                'question_text': question_text,
-                'user_answer': response.answer_text,
-                'is_correct': response.is_correct
-            })
-
-        return jsonify(assessment_title=assessment.title, student_email=student.email, responses=response_data)@ns.route('/send_invitations')
-    
 
 
 # Route to send invitations as assignments

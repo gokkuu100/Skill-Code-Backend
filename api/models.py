@@ -11,6 +11,7 @@ db =SQLAlchemy(metadata = metadata)
 
 db = SQLAlchemy()
 
+
 class Mentor(db.Model, SerializerMixin):
     mentor_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255))

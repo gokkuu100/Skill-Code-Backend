@@ -303,17 +303,45 @@ class PostResponsesResource(Resource):
                     db.session.add_all(new_responses)
                     db.session.commit()
 
-                    return make_response(jsonify({"message": "Responses submitted successfully."}), 200)
-                else:
-                    return make_response(jsonify({"message": "Invite for this assessment is not accepted."}), 403)
-            else:
-                return make_response(jsonify({"message": "Student is not assigned to this assessment."}), 403)
+                    # Calculate the score based on correct answers
+                    total_questions = len(new_responses)
+                    correct_answers = 0
+                    for response in new_responses:
+                        question = Question.query.get(response.question_id)
+                        if question and response.answer_text == question.correct_answer:
+                            correct_answers += 1
+
+                    # Calculate percentage 
+                    score_percentage = (correct_answers / total_questions) * 100
+
+                    # Determine grade based on the score
+                    if score_percentage >= 80:
+                        grade = 'A'
+                    elif score_percentage >= 60:
+                        grade = 'B'
+                    elif score_percentage >= 40:
+                        grade = 'C'
+                    elif score_percentage >= 20:
+                        grade = 'D'
+                    else:
+                        grade = 'F'
+
+                    # Save the grade
+                    new_grade = Grade(
+                        student_id=student_id,
+                        assessment_id=assessment_id,
+                        grade=grade
+                    )
+                    db.session.add(new_grade)
+                    db.session.commit()
+
+                    return make_response(jsonify({"message": f"Responses submitted successfully. Grade: {grade}"}), 200)
 
         except Exception as e:
             error_message = f"An error occurred: {str(e)}"
             app.logger.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
-    
+
 # Route for students to view their grades for a specific assessment
 @ns.route('/students/grades/<int:student_id>/<int:assessment_id>')
 class StudentGradeResource(Resource):
@@ -328,12 +356,14 @@ class StudentGradeResource(Resource):
 
             grades = Grade.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
 
+            grade_values = [grade.grade for grade in grades]
+
             grade_data = {
                 'student_id': student.student_id,
                 'student_email': student.email,
                 'assessment_id': assessment.assessment_id,
                 'assessment_title': assessment.title,
-                'grades': [{grade.grade_id: grade.grade} for grade in grades]
+                'grade': grade_values
             }
 
             return make_response(jsonify(grade_data), 200)
@@ -342,7 +372,7 @@ class StudentGradeResource(Resource):
             error_response = {"message": "An error occurred. Please check the logs for details."}
             return make_response(jsonify(error_response), 500)
 
-# Route for students to view their grades    
+# Route for students to view their grades
 @ns.route('/students/grades/<int:student_id>')  
 class StudentGradeResource(Resource):
     def get(self, student_id):
