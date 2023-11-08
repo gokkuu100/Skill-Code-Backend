@@ -86,36 +86,40 @@ class MentorLoginResource(Resource):
         except Exception as e:
             # Handle other exceptions and return a generic error response
             return make_response(jsonify(error='An error occurred'), 500)
-
-
-# Route to view mentor based on id
-@ns.route('/mentors/<int:mentor_id>')
+@ns.route('/mentors/profile')
 class ViewMentorResource(Resource):
-    def get(self, mentor_id):
-        mentor = Mentor.query.get_or_404(mentor_id)
-        if mentor:
-                print(mentor)
-                try:
+    @jwt_required
+    def get(self):
+        try:
+            # Get the mentor ID from the JWT token
+            current_user = get_jwt()
+            mentor_id = current_user.get("mentor_id")
+            
+            if mentor_id is None:
+                app.logger.error("Mentor ID not found in the JWT data")
+                return make_response(jsonify({'error': 'Mentor ID not found'}), 404)
 
-                    mentor_data = {
-                        'id': mentor.mentor_id,
-                        'name': mentor.name,
-                        'email': mentor.email,
-                        'assessments': [{
-                            'id': assessment.assessment_id,
-                            'title': assessment.title,
-                            # 'created_at': assessment.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                            'questions_count': assessment.questions.count()
-                        } for assessment in mentor.assessments]
-                    }
-                    return jsonify(mentor_data)
-                except Exception as e:
-                    app.logger.error(f"An error occurred: {str(e)}")
-                    # Return an error response
-                    abort(500, "An error occurred while fetching the assessment.")
-        else:
-            return make_response(jsonify({'error':'An error occurred'}), 500)
-        
+            mentor = Mentor.query.get_or_404(mentor_id)
+
+            mentor_data = {
+                'id': mentor.mentor_id,
+                'name': mentor.name,
+                'email': mentor.email,
+                # Add other attributes here
+            }
+
+            # Return the mentor data in a JSON response with status code 200 (OK)
+            return make_response(jsonify(mentor_data), 200)
+
+        except Exception as e:
+            app.logger.error(f"An unexpected error occurred: {str(e)}")
+            # Return an error response with status code 500 (Internal Server Error)
+            return make_response(jsonify({'error': 'An unexpected error occurred'}), 500)
+
+
+
+
+    
 # Assessment create
 @ns.route('/assessments/create')
 class CreateAssessmentResource(Resource):
