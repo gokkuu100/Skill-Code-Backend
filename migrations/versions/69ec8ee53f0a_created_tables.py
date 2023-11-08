@@ -1,8 +1,8 @@
-"""created tables2
+"""created tables
 
-Revision ID: 0729554c1841
+Revision ID: 69ec8ee53f0a
 Revises: 
-Create Date: 2023-11-08 16:19:00.081495
+Create Date: 2023-11-08 20:11:50.804580
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '0729554c1841'
+revision = '69ec8ee53f0a'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -44,6 +44,12 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['mentor_id'], ['mentor.mentor_id'], ),
     sa.PrimaryKeyConstraint('assessment_id')
+    )
+    op.create_table('assessment_student_association',
+    sa.Column('assessment_id', sa.Integer(), nullable=True),
+    sa.Column('student_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['assessment_id'], ['assessment.assessment_id'], ),
+    sa.ForeignKeyConstraint(['student_id'], ['student.student_id'], )
     )
     op.create_table('assignment',
     sa.Column('assignment_id', sa.Integer(), nullable=False),
@@ -151,6 +157,7 @@ def downgrade():
     op.drop_table('notification')
     op.drop_table('invite')
     op.drop_table('assignment')
+    op.drop_table('assessment_student_association')
     op.drop_table('assessment')
     op.drop_table('student')
     op.drop_table('mentor')
