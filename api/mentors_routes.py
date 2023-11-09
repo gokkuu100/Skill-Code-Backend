@@ -311,7 +311,7 @@ class InviteStudentResource(Resource):
         try:
             data = request.get_json()
             assessment_id = data.get('assessment_id')
-            student_email = data.get('student_email')
+            student_emails = data.get('student_emails')  # Get a list of student emails
 
             # Get the mentor_id and mentor's email from the token
             mentor_id = get_jwt_identity().get('mentor_id')
@@ -322,37 +322,78 @@ class InviteStudentResource(Resource):
             if not assessment:
                 return make_response(jsonify(error='Assessment not found or does not belong to the mentor'), 404)
 
-            # Check if the student with the provided email exists
-            student = Student.query.filter_by(email=student_email).first()
-            if not student:
-                return make_response(jsonify(error='Student not found with the provided email'), 404)
+            # Loop through the list of student emails and create assignment and invite records for each student
+            for student_email in student_emails:
+                student = Student.query.filter_by(email=student_email).first()
+                if student:
+                    # Create an assignment record for the student
+                    assignment = Assignment(
+                        assessment_id=assessment_id,
+                        mentor_id=mentor_id,
+                        student_id=student.student_id,
+                        is_accepted=False
+                    )
+                    db.session.add(assignment)
 
-            # Create an assignment record for the student
-            assignment = Assignment(
-                assessment_id=assessment_id,
-                mentor_id=mentor_id,
-                student_id=student.student_id,
-                is_accepted=False
-            )
-            db.session.add(assignment)
+                    # Create an invite record linking the assessment, mentor, and student
+                    invite = Invite(
+                        assessment_id=assessment_id,
+                        mentor_id=mentor_id,
+                        student_id=student.student_id
+                    )
+                    db.session.add(invite)
 
-            # Create an invite record linking the assessment, mentor, and student
-            invite = Invite(
-                assessment_id=assessment_id,
-                mentor_id=mentor_id,
-                student_id=student.student_id
-            )
-            db.session.add(invite)
+                    # Send invitation email using Flask-Mail with the mentor's email as the sender
+                    send_invitation_email(mentor_email, student_email, assessment.title)
+                else:
+                    # Handle case where student with provided email is not found
+                    return make_response(jsonify(error=f'Student not found with the email: {student_email}'), 404)
 
             db.session.commit()
 
-            # Send invitation email using Flask-Mail with the mentor's email as the sender
-            send_invitation_email(mentor_email, student_email, assessment.title)
-
-            return make_response(jsonify(message='Student invited to the assessment successfully'), 201)
+            return make_response(jsonify(message='Students invited to the assessment successfully'), 201)
 
         except Exception as e:
             return make_response(jsonify({'error': str(e)}), 500)
 
+# Route to view students and their grades for specific assessments
+@app.route('/SkillCode/assessments/students', methods=['GET'])
+def get_students_and_grades_for_assessments():
+    try:
+        assessments = Assessment.query.all()
+        assessment_data = []
 
+        for assessment in assessments:
+            # Get assignments and grades for the assessment
+            assignments = Assignment.query.filter_by(assessment_id=assessment.assessment_id).all()
+            students_data = []
+
+            for assignment in assignments:
+                student = Student.query.get(assignment.student_id)
+                if student:
+                    # Get student's grade for the assessment
+                    grade = Grade.query.filter_by(assessment_id=assessment.assessment_id, student_id=student.student_id).first()
+                    if grade:
+                        grade_data = {
+                            'student_email': student.email,
+                            'grade': grade.grade
+                        }
+                    else:
+                        grade_data = {
+                            'student_email': student.email,
+                            'grade': None
+                        }
+                    students_data.append(grade_data)
+
+            assessment_info = {
+                'assessment_id': assessment.assessment_id,
+                'title': assessment.title,
+                'students': students_data
+            }
+            assessment_data.append(assessment_info)
+
+        return jsonify({'assessments': assessment_data}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 

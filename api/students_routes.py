@@ -225,7 +225,7 @@ class GetAssessmentResource(Resource):
                                 # "title": question.title,
                                 "options": question.options,
                                 "text_question": question.text_question,
-                                "correct_answer": question.correct_answer
+                                # "correct_answer": question.correct_answer
                             }
                             for question in questions
                         ]
@@ -442,3 +442,36 @@ class QuestionFeedbackResource(Resource):
         except Exception as e:
             app.logger.exception(f"An error occurred: {str(e)}")
             return make_response(jsonify({"message": "Error occurred while fetching question feedback"}), 500)
+        
+# Route to get questions for a specific assessment
+@ns.route('/assessments/<int:assessment_id>/questions')
+class AssessmentQuestionsResource(Resource):
+    def get(self, assessment_id):
+        try:
+            # Retrieve the assessment with the given assessment_id
+            assessment = Assessment.query.get_or_404(assessment_id)
+
+            # Check if the assessment exists
+            if not assessment:
+                return make_response(jsonify({"error": "Assessment not found"}), 404)
+
+            # Retrieve questions associated with the assessment
+            questions = assessment.questions.all()
+
+            # Prepare question data to be returned
+            question_data = []
+            for question in questions:
+                question_info = {
+                    'question_id': question.question_id,
+                    'text_question': question.text_question,
+                    'options': question.options,
+                    # Add more question details here if needed
+                }
+                question_data.append(question_info)
+
+            return make_response(jsonify(question_data), 200)
+
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            app.logger.exception(error_message)
+            return make_response(jsonify({"error": "An error occurred while retrieving assessment questions"}), 500)
