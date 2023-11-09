@@ -82,22 +82,34 @@ class StudentLoginResource(Resource):
             return make_response(jsonify(error='An error occurred'), 500)
         
 
-# route to retrieve a student by id
-@ns.route('/students/<int:student_id>')
-class ViewMentorResource(Resource):
-    def get(self, student_id):
+# Modify the route to retrieve a specific student
+@ns.route('/student')
+class ViewStudentResource(Resource):
+    @jwt_required()
+    def get(self):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Retrieve student ID from the token
+            student_id = current_user.get('student_id')
+
+            # Check if the student ID exists in the token
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the token"}), 401)
+
+            # Retrieve student data based on the student ID from the token
             student = Student.query.get_or_404(student_id)
             student_data = {
                 'id': student.student_id,
                 'name': student.name,
                 'email': student.email,
-                
                 'assignments': [{
                     'id': assignment.assignment_id,
                     'assessment_id': assignment.assessment_id
                 } for assignment in student.assignments]
             }
+
             return make_response(jsonify(student_data))
         except Exception as e:
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
@@ -124,32 +136,36 @@ class AllStudentsResource(Resource):
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # Endpoint to view assessment invites and associated notifications for a student
-@ns.route('/students/<int:student_id>/assessment_invites')
+@ns.route('/students/assessment_invites')
 class StudentAssessmentInvites(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Get student ID from the token
+            student_id = current_user.get('student_id')
+
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the JWT data"}), 401)
+
             invites = Invite.query.filter_by(student_id=student_id).all()
 
             if invites:
                 invite_data = []
                 for invite in invites:
-                    print("invite",invite)
                     notifications = Notification.query.filter_by(student_id=student_id, assessment_id=invite.assessment_id).all()
-                    print("notification", notifications)
                     notification_data = [notification.content for notification in notifications if not isinstance(notification.content, Response)]
-                    
-                    # Retrieve the associated assignment for is_accepted attribute
-                    assignment = Assignment.query.filter_by(assessment_id=invite.assessment_id, student_id=invite.student_id).first()
-                    print("assignments", assignment)
+
+                    assignment = Assignment.query.filter_by(assessment_id=invite.assessment_id, student_id=student_id).first()
                     is_accepted = assignment.is_accepted if assignment else None
 
-                      # Fetch the associated mentor name
                     mentor_name = invite.assessment.mentor.name if invite.assessment and invite.assessment.mentor else None
 
-                    # Fetch the assessment time limit
                     assessment_time_limit = invite.assessment.time_limit if invite.assessment else None
 
-                    assessment = invite.assessment  # You need to define this relationship in your model
+                    assessment = invite.assessment
                     data = {
                         "invite_id": invite.invite_id,
                         "assessment_id": invite.assessment_id,
@@ -170,12 +186,23 @@ class StudentAssessmentInvites(Resource):
             error_message = f"An error occurred: {str(e)}"
             logging.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
+
         
 # Endpoint to accept assessment invites and associated notifications for a student
-@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/accept_invite')
+@ns.route('/assessments/<int:assessment_id>/accept_invite')
 class AcceptAssessmentInvite(Resource):
-    def post(self, student_id, assessment_id):
+    @jwt_required()
+    def post(self, assessment_id):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Get student ID from the token
+            student_id = current_user.get('student_id')
+
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the JWT data"}), 401)
+
             # Check if the student_id and assessment_id match an existing invite
             invite = Invite.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
 
@@ -193,17 +220,29 @@ class AcceptAssessmentInvite(Resource):
                      return make_response(jsonify({"message": f"No assignment found for student {student_id} and assessment {assessment_id}"}), 404)
             else:
                 return make_response(jsonify({"message": f"No invite found for student {student_id} and assessment {assessment_id}"}), 404)
-            
+
         except Exception as e:
             error_message = f"An error occurred: {str(e)}"
             logging.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
 
-# route for student to see assigned assessments
-@ns.route('/students/assessment_details/<int:student_id>')
+
+# Modify the route for students to see assigned assessments
+@ns.route('/students/assessment_details')
 class GetAssessmentResource(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Retrieve student ID from the token
+            student_id = current_user.get('student_id')
+
+            # Check if the student ID exists in the token
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the token"}), 401)
+
             # Query to retrieve assignments associated with the student
             assignments = Assignment.query.filter_by(student_id=student_id).all()
 
@@ -212,7 +251,6 @@ class GetAssessmentResource(Resource):
                 for assignment in assignments:
                     assessment = assignment.assessment
                     questions = assessment.questions.all()  # Retrieves all questions related to the assessment
-                    student = assignment.student
 
                     data = {
                         "assignment_id": assignment.assignment_id,
@@ -232,7 +270,7 @@ class GetAssessmentResource(Resource):
                     }
 
                     assessment_data.append(data)
-                
+
                 # Assuming all assignments belong to the same student
                 student = assignments[0].student 
 
@@ -250,16 +288,25 @@ class GetAssessmentResource(Resource):
             app.logger.error(f"An error occurred: {str(e)}")
             return make_response(jsonify({"message": "An error occurred. Please check the logs for details."}), 500)
 
-
-# route for students to attempt assessments
-@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/submit_assessment')
+# Modify the route for students to attempt assessments
+@ns.route('/students/assessments/<int:assessment_id>/submit_assessment')
 class PostResponsesResource(Resource):
-    def post(self, student_id, assessment_id):
-        print("student", student_id, "assessment", assessment_id)
+    @jwt_required()
+    def post(self, assessment_id):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Retrieve student ID from the token
+            student_id = current_user.get('student_id')
+
+            # Check if the student ID exists in the token
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the token"}), 401)
+
             student = Student.query.filter_by(student_id=student_id).first()
             assessment = Assessment.query.filter_by(assessment_id=assessment_id).first()
-            print(assessment.assessment_id)
+
             if not (assessment and student):
                 return make_response(jsonify({"message": "Assessment or student not found."}), 404)
 
@@ -275,7 +322,6 @@ class PostResponsesResource(Resource):
                         return make_response(jsonify({"message": "Assessment already submitted by the student."}), 400)
 
                     responses = request.json  # Expecting a list of responses
-                    print("respinses",responses)
 
                     if not responses or not isinstance(responses, list):
                         return make_response(jsonify({"message": "Invalid or empty responses provided."}), 400)
@@ -287,7 +333,7 @@ class PostResponsesResource(Resource):
 
                         # Check if the question exists and is associated with the provided assessment
                         question = Question.query.filter_by(question_id=question_id, assessment_id=assessment.assessment_id).first()
-                        print("question",question)
+
                         if question:
                             new_response = Response(
                                 assignment_id=assignment.assignment_id,
@@ -342,11 +388,22 @@ class PostResponsesResource(Resource):
             app.logger.exception(error_message)
             return make_response(jsonify({"message": error_message}), 500)
 
+
 # Route for students to view their grades for a specific assessment
-@ns.route('/students/grades/<int:student_id>/<int:assessment_id>')
+@ns.route('/students/grades/<int:assessment_id>')
 class StudentGradeResource(Resource):
-    def get(self, student_id, assessment_id):
+    @jwt_required()
+    def get(self, assessment_id):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Get student ID from the token
+            student_id = current_user.get('student_id')
+
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the JWT data"}), 401)
+
             student = Student.query.get_or_404(student_id)
             assessment = Assessment.query.get_or_404(assessment_id)
 
@@ -368,15 +425,26 @@ class StudentGradeResource(Resource):
 
             return make_response(jsonify(grade_data), 200)
         except Exception as e:
-            app.logger.error(f"An error occurred: {str(e)}")
-            error_response = {"message": "An error occurred. Please check the logs for details."}
-            return make_response(jsonify(error_response), 500)
+            error_message = f"An error occurred: {str(e)}"
+            logging.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
+
 
 # Route for students to view their grades
-@ns.route('/students/grades/<int:student_id>')  
+@ns.route('/students/grades')  
 class StudentGradeResource(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Get student ID from the token
+            student_id = current_user.get('student_id')
+
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the JWT data"}), 401)
+
             student = Student.query.get_or_404(student_id)
 
             grades = Grade.query.filter_by(student_id=student_id).all()
@@ -398,17 +466,27 @@ class StudentGradeResource(Resource):
 
             return make_response(jsonify(student_info), 200)
         except Exception as e:
-            app.logger.error(f"An error occurred: {str(e)}")
-            error_response = {"message": "An error occurred. Please check the logs for details."}
-            return make_response(jsonify(error_response), 500)
+            error_message = f"An error occurred: {str(e)}"
+            logging.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
+
         
 # Route to view question feedback 
-@ns.route("/students/<int:student_id>/assessments/<int:assessment_id>/feedback")
+@ns.route("/students/assessments/feedback")
 class QuestionFeedbackResource(Resource):
-    # @jwt_required
-    def get(self, student_id, assessment_id):
+    @jwt_required()
+    def get(self):
         try:
-            feedback = Feedback.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
+            # Get the current user's identity from the JWT token
+            current_user = get_jwt_identity()
+
+            # Get student ID from the token
+            student_id = current_user.get('student_id')
+
+            if student_id is None:
+                return make_response(jsonify({"error": "Student ID not found in the JWT data"}), 401)
+
+            feedback = Feedback.query.filter_by(student_id=student_id).all()
 
             if not feedback:
                 return make_response(jsonify({"message": "No feedback found for this student's assessment"}), 404)
@@ -433,15 +511,16 @@ class QuestionFeedbackResource(Resource):
 
             response = {
                 "student_id": student_id,
-                "assessment_id": assessment_id,
                 "feedback": feedback_data
             }
 
             return make_response(jsonify(response), 200)
 
         except Exception as e:
-            app.logger.exception(f"An error occurred: {str(e)}")
-            return make_response(jsonify({"message": "Error occurred while fetching question feedback"}), 500)
+            error_message = f"An error occurred: {str(e)}"
+            logging.exception(error_message)
+            return make_response(jsonify({"message": error_message}), 500)
+
         
 # Route to get questions for a specific assessment
 @ns.route('/assessments/<int:assessment_id>/questions')

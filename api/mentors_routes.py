@@ -396,4 +396,4 @@ def get_students_and_grades_for_assessments():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+    
