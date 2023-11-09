@@ -83,10 +83,19 @@ class StudentLoginResource(Resource):
         
 
 # route to retrieve a student by id
-@ns.route('/students/<int:student_id>')
+@ns.route('/students/profile')
 class ViewMentorResource(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
+            # Retrieve the student with the given id from the database
             student = Student.query.get_or_404(student_id)
             student_data = {
                 'id': student.student_id,
@@ -104,7 +113,7 @@ class ViewMentorResource(Resource):
 
 # get all students
 # Route to retrieve all students
-@ns.route('/students')
+@ns.route('/students/list')
 class AllStudentsResource(Resource):
     def get(self):
         try:
@@ -124,10 +133,19 @@ class AllStudentsResource(Resource):
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # Endpoint to view assessment invites and associated notifications for a student
-@ns.route('/students/<int:student_id>/assessment_invites')
+@ns.route('/students/assessment_invites')
 class StudentAssessmentInvites(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
+            # Retrieve the Invites with the given student id from the database
             invites = Invite.query.filter_by(student_id=student_id).all()
 
             if invites:
@@ -172,10 +190,17 @@ class StudentAssessmentInvites(Resource):
             return make_response(jsonify({"message": error_message}), 500)
         
 # Endpoint to accept assessment invites and associated notifications for a student
-@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/accept_invite')
+@ns.route('/students/assessments/<int:assessment_id>/accept_invite')
 class AcceptAssessmentInvite(Resource):
-    def post(self, student_id, assessment_id):
+    @jwt_required()
+    def post(self,assessment_id):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
             # Check if the student_id and assessment_id match an existing invite
             invite = Invite.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
 
@@ -200,10 +225,19 @@ class AcceptAssessmentInvite(Resource):
             return make_response(jsonify({"message": error_message}), 500)
 
 # route for student to see assigned assessments
-@ns.route('/students/assessment_details/<int:student_id>')
+@ns.route('/students/assessment_details')
+
 class GetAssessmentResource(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
             # Query to retrieve assignments associated with the student
             assignments = Assignment.query.filter_by(student_id=student_id).all()
 
@@ -252,11 +286,19 @@ class GetAssessmentResource(Resource):
 
 
 # route for students to attempt assessments
-@ns.route('/students/<int:student_id>/assessments/<int:assessment_id>/submit_assessment')
+@ns.route('/students/assessments/<int:assessment_id>/submit_assessment')
 class PostResponsesResource(Resource):
-    def post(self, student_id, assessment_id):
-        print("student", student_id, "assessment", assessment_id)
+    @jwt_required()
+    def post(self, assessment_id):
+       
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
             student = Student.query.filter_by(student_id=student_id).first()
             assessment = Assessment.query.filter_by(assessment_id=assessment_id).first()
             print(assessment.assessment_id)
@@ -343,10 +385,18 @@ class PostResponsesResource(Resource):
             return make_response(jsonify({"message": error_message}), 500)
 
 # Route for students to view their grades for a specific assessment
-@ns.route('/students/grades/<int:student_id>/<int:assessment_id>')
+@ns.route('/students/grades/<int:assessment_id>')
 class StudentGradeResource(Resource):
-    def get(self, student_id, assessment_id):
+    @jwt_required()
+    def get(self,  assessment_id):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
             student = Student.query.get_or_404(student_id)
             assessment = Assessment.query.get_or_404(assessment_id)
 
@@ -373,10 +423,18 @@ class StudentGradeResource(Resource):
             return make_response(jsonify(error_response), 500)
 
 # Route for students to view their grades
-@ns.route('/students/grades/<int:student_id>')  
+@ns.route('/students/grades')  
 class StudentGradeResource(Resource):
-    def get(self, student_id):
+    @jwt_required()
+    def get(self):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
             student = Student.query.get_or_404(student_id)
 
             grades = Grade.query.filter_by(student_id=student_id).all()
@@ -403,11 +461,18 @@ class StudentGradeResource(Resource):
             return make_response(jsonify(error_response), 500)
         
 # Route to view question feedback 
-@ns.route("/students/<int:student_id>/assessments/<int:assessment_id>/feedback")
+@ns.route("/students/assessments/<int:assessment_id>/feedback")
 class QuestionFeedbackResource(Resource):
-    # @jwt_required
-    def get(self, student_id, assessment_id):
+    @jwt_required()
+    def get(self, assessment_id):
         try:
+            current_user = get_jwt_identity()
+            student_id = current_user.get("student_id")
+
+            if student_id is None:
+                app.logger.error("Student id not found, login again")
+                return make_response(jsonify({'error':'Student not found'}), 400)
+            
             feedback = Feedback.query.filter_by(student_id=student_id, assessment_id=assessment_id).all()
 
             if not feedback:
@@ -442,3 +507,6 @@ class QuestionFeedbackResource(Resource):
         except Exception as e:
             app.logger.exception(f"An error occurred: {str(e)}")
             return make_response(jsonify({"message": "Error occurred while fetching question feedback"}), 500)
+        
+
+        # protecting
