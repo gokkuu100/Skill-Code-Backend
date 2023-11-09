@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/home/user/Desktop/Skill-Code-Backend/virtual"
+VIRTUAL_ENV="/home/user/Desktop/hosting/Skill-Code-Backend/virtual"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
