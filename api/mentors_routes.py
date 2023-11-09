@@ -1,4 +1,4 @@
-from ..api import *
+from api import *
 from flask_jwt_extended import get_jwt_identity
 
 
