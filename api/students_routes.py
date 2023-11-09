@@ -1,4 +1,4 @@
-from api import *
+from ..api import *
 from flask import request
 import logging
 
