@@ -313,7 +313,7 @@ class InviteStudentResource(Resource):
             assessment_id = data.get('assessment_id')
             student_emails = data.get('student_emails')  # Get a list of student emails
 
-            # Get the mentor_id and mentor's email from the token
+            # Get the mentor_id and email
             mentor_id = get_jwt_identity().get('mentor_id')
             mentor_email = get_jwt_identity().get('email')
 
@@ -322,7 +322,7 @@ class InviteStudentResource(Resource):
             if not assessment:
                 return make_response(jsonify(error='Assessment not found or does not belong to the mentor'), 404)
 
-            # Loop through the list of student emails and create assignment and invite records for each student
+            # Loop through the list of student emails
             for student_email in student_emails:
                 student = Student.query.filter_by(email=student_email).first()
                 if student:
@@ -343,7 +343,7 @@ class InviteStudentResource(Resource):
                     )
                     db.session.add(invite)
 
-                    # Send invitation email using Flask-Mail with the mentor's email as the sender
+                    # Send invitation email using Flask-Mail 
                     send_invitation_email(mentor_email, student_email, assessment.title)
                 else:
                     # Handle case where student with provided email is not found

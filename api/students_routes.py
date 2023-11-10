@@ -82,7 +82,7 @@ class StudentLoginResource(Resource):
             return make_response(jsonify(error='An error occurred'), 500)
         
 
-# Modify the route to retrieve a specific student
+# Route to retrieve a specific student
 @ns.route('/student')
 class ViewStudentResource(Resource):
     @jwt_required()
@@ -114,7 +114,7 @@ class ViewStudentResource(Resource):
         except Exception as e:
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-# get all students
+
 # Route to retrieve all students
 @ns.route('/students')
 class AllStudentsResource(Resource):
@@ -271,7 +271,6 @@ class GetAssessmentResource(Resource):
 
                     assessment_data.append(data)
 
-                # Assuming all assignments belong to the same student
                 student = assignments[0].student 
 
                 # Prepare the data to be returned
@@ -300,7 +299,7 @@ class PostResponsesResource(Resource):
             # Retrieve student ID from the token
             student_id = current_user.get('student_id')
 
-            # Check if the student ID exists in the token
+            # Checks if the student ID exists in the token
             if student_id is None:
                 return make_response(jsonify({"error": "Student ID not found in the token"}), 401)
 
@@ -310,18 +309,18 @@ class PostResponsesResource(Resource):
             if not (assessment and student):
                 return make_response(jsonify({"message": "Assessment or student not found."}), 404)
 
-            # Check if the student is assigned to the assessment
+            # Checks if the student is assigned to the assessment
             assignment = Assignment.query.filter_by(student_id=student_id, assessment_id=assessment_id).first()
 
             if assignment:
                 if assignment.is_accepted:
-                    # Check if the assessment is already submitted by the student
+                    # Checks if the assessment is already submitted by the student
                     existing_response = Response.query.filter_by(student_id=student_id, assignment_id=assignment.assignment_id).first()
 
                     if existing_response:
                         return make_response(jsonify({"message": "Assessment already submitted by the student."}), 400)
 
-                    responses = request.json  # Expecting a list of responses
+                    responses = request.json 
 
                     if not responses or not isinstance(responses, list):
                         return make_response(jsonify({"message": "Invalid or empty responses provided."}), 400)
@@ -331,7 +330,7 @@ class PostResponsesResource(Resource):
                         question_id = response_data.get('question_id')
                         answer_text = response_data.get('answer_text')
 
-                        # Check if the question exists and is associated with the provided assessment
+                        # Checks if the question exists and is associated with the provided assessment
                         question = Question.query.filter_by(question_id=question_id, assessment_id=assessment.assessment_id).first()
 
                         if question:
@@ -349,7 +348,7 @@ class PostResponsesResource(Resource):
                     db.session.add_all(new_responses)
                     db.session.commit()
 
-                    # Calculate the score based on correct answers
+                    # Calculate the scores
                     total_questions = len(new_responses)
                     correct_answers = 0
                     for response in new_responses:
